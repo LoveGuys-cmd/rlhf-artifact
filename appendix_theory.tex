@@ -100,10 +100,9 @@ Let \(F_j^*\) be the true conditional CDF.  Under the pointwise premise
 \(F_j^*(t)\le\overline F_j(t)\) for every candidate and threshold,
 first-order stochastic dominance gives the lower-bound inequality in
 Theorem~\ref{thm:coverage-summary}.  For the misspecified case, define
-\(\xi=\max_{j,t}[F_j^*(t)-\overline F_j(t)]_+\).  Under
-the same conditioning, each true rating distribution
-first-order stochastically dominates \(\overline p_j\).
-Monotonicity of the maximum proves the displayed lower bound.  In the misspecified case, for
+\(\xi=\max_{j,t}[F_j^*(t)-\overline F_j(t)]_+\).  At each threshold, the
+true and robust tail-sum terms can differ only through the corresponding
+CDF products.  For
 \(a_j,b_j\in[0,1]\),
 
 \[
@@ -116,7 +115,8 @@ Apply this inequality with
 \(b_j=\overline F_j(t-1)\) at each of four thresholds.
 The discrepancy is at most \(N\xi\) per threshold and therefore
 at most \(4N\xi\) after summation.  Taking outer expectations
-preserves the inequalities.
+preserves the resulting inequality
+\(\mathbb E_*[\max_jR_j]\ge h_N^{\mathrm{rob}}-4N\xi\).
 
 \paragraph{Proof of Proposition~\ref{prop:radius-monotonicity}.}
 Fix a candidate group and threshold \(t\), and write
@@ -137,6 +137,17 @@ Substituting this bound into the four-term tail-sum expression for
 responses, proves \cref{eq:radius-bound}.  At \(\varepsilon=0\), the envelope
 equals the nominal CDF, so the exact infimum in
 Theorem~\ref{thm:main-max} equals \(J_N^{\mathrm{nom}}(\theta)\).
+
+\paragraph{Proof of Proposition~\ref{prop:rollback}.}
+Let \((\theta_0,\mathsf{Opt}_0)\) be the snapshot taken before a tentative
+update.  If the measured rollout-state KL exceeds \(\delta_{\rm hard}\), the
+algorithm assigns \((\theta,\mathsf{Opt})\leftarrow
+(\theta_0,\mathsf{Opt}_0)\), so both objects equal their pre-update values
+exactly (up to the semantics of the implementation's state-copy operation).
+Because controller-state updates occur only in the accepted branch, a rejected
+transition also leaves the baseline, dual variables, KL coefficient, and RMS
+scale unchanged.  The statement is conditional on the measured batch and
+therefore makes no population-level KL claim.
 
 \paragraph{Proof of Theorem~\ref{thm:main-gradient}.}
 For nonnegative integer ratings,
