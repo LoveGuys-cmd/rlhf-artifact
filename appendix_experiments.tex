@@ -22,6 +22,19 @@ preference diagnostics provide evidence against target-RM exploitation?
 No result is used to remove a comparator, redefine a gate, or select a more
 favorable protocol.
 
+\subsection{Gate outcomes and scientific interpretation}
+\label{subsec:gate-outcomes}
+
+The artifact verifier passed for seeds 314, 2718, and 1618. Passed gates are
+the ArmoRM generated-output proxy, held-out KL superiority versus Mean-PPO and
+GRPO, the nominal-mean floor, and the independent Quality-RM floor. Failed
+gates are the Qwen generated-output proxy, robust non-inferiority versus
+Mean-PPO and GRPO, and the primary comparison versus Scalar Max-PPO.
+Accordingly, the preregistered all-gates field is
+\texttt{scientific\_success=false}. This records a max--stability trade-off;
+it is not evidence of direct human-preference improvement or a proof that
+reward-model exploitation is absent.
+
 \subsection{Models, data, and split discipline}
 \label{subsec:models-data}
 

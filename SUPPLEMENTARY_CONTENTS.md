@@ -7,11 +7,11 @@ needed to inspect the submitted paper and reproduce the analysis pipeline.
 
 - Anonymous ICLR paper source (`main.tex`, appendix sources, and
   `references.bib`).
-- Official ICLR 2027 style files (`iclr2027_conference.sty` and
-  `iclr2027_conference.bst`).
+- Official ICLR 2027 style files (`iclr2027_conference.sty`,
+  `iclr2027_conference.bst`, `fancyhdr.sty`, and `natbib.sty`).
 - The robust-max/KL figure, plotting script, per-seed tables, held-out KL
   reports, and `PUBLICATION_V8_TERMINAL.json`.
-- `code/`, containing the actual v8 training loop, evaluation and held-out KL
+- `code/`, containing the actual v8 StableMax-PPO training loop, evaluation and held-out KL
   scripts, diagnostics, protocol freezing, aggregate computation, tests, and
   Slurm entry points.
 - `code/requirements.txt` and READMEs describing commands and data/model

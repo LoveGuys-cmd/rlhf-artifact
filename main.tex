@@ -133,9 +133,11 @@ superiority or direct human-preference improvement.
 \section{Problem Setup}
 \label{sec:problem-setup}
 
-This paper studies terminal-reward language-model reinforcement learning with a fixed best-of-\(N\) response budget.  The objective is the exact upper-tail value induced by a frozen calibrated ordinal reward model, together with predeclared robustness, mean-quality, independent-quality, and KL safeguards.  The method does not rely on a Gaussian reward assumption and does not claim direct human-preference superiority before the confirmatory evaluation is complete.  A prompt \(x\sim\mathcal D\) and a
-response \(Y=(a_1,\ldots,a_H)\) induce states
-\(s_h=(x,a_{<h})\) and policy probability
+This paper studies terminal-reward language-model reinforcement learning with a fixed best-of-\(N\) response budget.  The objective is the exact upper-tail value induced by a frozen calibrated ordinal reward model, together with predeclared robustness, mean-quality, independent-quality, and KL safeguards.  The method does not rely on a Gaussian reward assumption and does not claim direct human-preference superiority before the confirmatory evaluation is complete.  A prompt \(x\sim\mathcal D\) and a response \(Y=(a_1,\ldots,a_H)\) induce states \(s_h=(x,a_{<h})\), with sequence probability
+
+We use $\theta$ for the trainable policy, $\omega$ for the frozen ordinal
+reward model, and $\eta$ for the frozen independent Quality RM; the reference
+policy $\pi_{\rm ref}$ is fixed throughout.
 
 \begin{equation}
 \label{eq:sequence-policy}
@@ -151,7 +153,7 @@ target is not the expected rating of one response.  It is the expected best
 rating attainable from a fixed sampling budget, while preserving nominal
 quality and limiting policy drift.
 
-\subsection{Problem formulation and notation}
+\subsection{RLHF setting and notation}
 \label{subsec:problem-notation}
 
 For each prompt, the policy generates a group of \(N\) responses
@@ -195,7 +197,7 @@ and \(\pi_\mathrm{ref}\) is a frozen reference policy.  The subscripts
 \(\omega\) and \(\eta\) distinguish the two evaluators; neither
 belongs to the trainable policy parameter \(\theta\).
 
-\subsection{Relationship to prior objectives}
+\subsection{Relation to existing objectives}
 \label{subsec:scope}
 
 \method{} is a policy-gradient method implemented through PPO; it is not a new
@@ -223,7 +225,7 @@ ambiguity-set component is related to robust MDPs and distributionally robust
 optimization \citep{iyengar2005robust,nilim2005robust}, but it is defined
 over five terminal rating categories rather than transition kernels.
 
-\subsection{Ordinal reward distribution}
+\subsection{Frozen ordinal reward model}
 \label{subsec:ordinal-rm}
 
 Let the observable rating space be
@@ -284,7 +286,7 @@ Consequently, \(R\) denotes a model-implied annotation draw, not an
 observed label on a newly generated response and not an objective measure of
 human utility.
 
-\subsection{Exact finite-\texorpdfstring{\(N\)}{N} upper-tail objective}
+\subsection{Finite-budget Best-of-\texorpdfstring{\(N\)}{N} objective}
 \label{subsec:ordinal-objective}
 
 For candidate \(j\), define
@@ -459,6 +461,14 @@ Y_{1:N}\sim\pi_\theta}
 \left[h_N^{\mathrm{rob}}(x,Y_{1:N})\right].
 \end{equation}
 
+\begin{theorem}[Exact finite-budget robust maximum]
+\label{thm:main-max}
+Under (A1), the nominal and robust finite-budget objectives are given by
+\cref{eq:ordinal-max-closed} and \cref{eq:robust-max-closed}, respectively.
+In particular, the latter is the exact infimum over the declared product
+ambiguity set, not a Monte Carlo or Gaussian approximation.
+\end{theorem}
+
 \subsection{Exact marginal credit}
 \label{subsec:robust-credit}
 
@@ -493,6 +503,18 @@ This credit integrates out the stochastic rating outcome while retaining
 prompt and response sampling.  It is therefore a Rao--Blackwellized policy
 credit, not a deterministic statement about human ratings
 \citep{casella1996rao}.
+
+\begin{theorem}[Exact marginal policy credit]
+\label{thm:main-gradient}
+Under (A1)--(A3), the credit in
+\cref{eq:robust-credit-closed} satisfies
+\begin{equation*}
+\nabla_\theta J_N^{\mathrm{rob}}(\theta)
+=\mathbb E\left[\sum_{i=1}^{N}q_i^{\mathrm{rob}}
+\nabla_\theta\log\pi_\theta(Y_i\mid x)\right].
+\end{equation*}
+Thus the response-level estimator is unbiased before PPO clipping.
+\end{theorem}
 
 \subsection{Safeguards and constrained objective}
 \label{subsec:constrained-objective}
@@ -550,7 +572,7 @@ The primal--dual form is
 \min_{\lambda_m,\lambda_q\ge0}
 \mathcal J(\theta,\lambda_m,\lambda_q)\).
 By linearity and the same conditional-centering argument used in
-\cref{thm:robust-policy-gradient}, an unbiased response-level
+\cref{thm:main-gradient}, an unbiased response-level
 Lagrangian credit is
 
 \begin{equation}
@@ -669,23 +691,20 @@ measured batch; it is not a population-level KL theorem.
 
 \subsection{Optimization procedure}
 \label{subsec:algorithm}
-\begin{algorithm}[t]
+\begin{algorithm}[H]
 \caption{StableMax-PPO update}
 \label{alg:stablemax}
 \KwIn{$\mathcal D,\pi_\theta,\pi_{\rm ref},p_\omega,Q_\eta,\varepsilon_{\rm cal},m_0,q_0,N,\delta,\delta_{\rm hard}$}
 \KwOut{Updated policy parameters $\theta$.}
 Initialize $b_\psi,\lambda_m,\lambda_q,\beta_{\rm KL}$ and lagged scale $s>0$\;
 \For{$k=1,\ldots,T_{\rm pol}$}{
-  Sample $B$ prompts and $N$ iid responses per prompt from $\pi_{\rm old}$; cache token log-probabilities\;
-  Evaluate $p_{\omega,0:4}$, $\mu_\omega$, and $Q_\eta$\;
-  Build $\bar F_{b,i}(t)=\min\{1,F_{\omega,b,i}(t)+\varepsilon_{\rm cal}\}$\;
-  Compute $q^{\rm rob}_{b,i}$ and $A_{b,i}=N[\tilde q_{b,i}-b_\psi(x_b)]$\;
-  Snapshot $(\theta,\mathsf{Opt})$ and take one clipped-PPO step on
-  $[\widehat{\mathcal S}_{\rm clip}-\beta_{\rm KL}\widehat{\rm KL}]/s$\;
-  \eIf{post-update $\widehat{\rm KL}>\delta_{\rm hard}$}{
-    Restore $(\theta,\mathsf{Opt})$; keep controller state unchanged\;
+  Roll out $N$ responses for each of $B$ prompts under $\pi_{\rm old}$\;
+  Compute robust credits by \eqref{eq:robust-credit-closed} and constrained advantages by \eqref{eq:constrained-credit}\;
+  Snapshot $(\theta,\mathsf{Opt})$ and take one clipped-PPO step using \eqref{eq:regularized-ppo}\;
+  \eIf{measured post-update $\widehat{\rm KL}>\delta_{\rm hard}$}{
+    Restore $(\theta,\mathsf{Opt})$; leave controller state unchanged\;
   }{
-    Commit the update and advance $b_\psi,\lambda_m,\lambda_q,\beta_{\rm KL},s$\;
+    Commit and update $b_\psi,\lambda_m,\lambda_q,\beta_{\rm KL},s$\;
   }
 }
 \end{algorithm}
@@ -695,26 +714,33 @@ supplementary protocol.
 \section{Theoretical Analysis}
 \label{sec:theory}
 
-The finite support of the ordinal model makes the main identities exact. The
-following statements isolate what is guaranteed by the objective and what is
-only an empirical controller property. Proofs are provided in
+The exact identities in Section~\ref{sec:method} establish the optimization
+target and its score-function estimator.  This section analyzes the two
+remaining control mechanisms: calibration coverage and update rejection.
+Proofs and the misspecification bound are provided in
 Appendix~\ref{app:theory}.
 
-\begin{theorem}[Exact finite-budget maximum]
-\label{thm:main-max}
-For conditionally independent ratings on $\{0,1,2,3,4\}$,
-\(h_N^{\rm nom}=\sum_{t=1}^{4}[1-\prod_jF_{\omega,j}(t-1)]\). Replacing each
-CDF by the upper envelope $\bar F_j$ gives the exact worst-case value over
-the declared ambiguity set.
+\subsection{Calibration coverage}
+\label{subsec:theory-calibration}
+The calibration radius is a population-average statement over validation
+prompt clusters; it is not a pointwise guarantee for every generated
+response.  If the true conditional CDFs satisfy the stated envelope, the
+robust objective is a lower bound on the target expected maximum.
+
+\begin{theorem}[Calibration-robust lower bound]
+\label{thm:coverage-summary}
+Let $F_j^*$ denote the true conditional CDF.  If
+$F_j^*(t)\le\overline F_j(t)$ for all $j$ and $t\in\{0,1,2,3\}$, then
+\[
+\mathbb E_*[\max_jR_j\mid x,Y_{1:N}]
+\ge h_N^{\mathrm{rob}}(x,Y_{1:N}).
+\]
+Without exact coverage, the gap is at most $4N\xi(x,Y_{1:N})$, where
+$\xi=\max_{j,t}[F_j^*(t)-\overline F_j(t)]_+$.
 \end{theorem}
 
-\begin{theorem}[Exact marginal policy credit]
-\label{thm:main-gradient}
-Under (A1)--(A3), the leave-one-out credit in Eq.~\eqref{eq:robust-credit-closed}
-is unbiased and satisfies
-\(\nabla_\theta J_N^{\rm rob}=\mathbb E[\sum_iq_i^{\rm rob}\nabla_\theta\log\pi_\theta(Y_i\mid x)]\).
-\end{theorem}
-
+\subsection{Rollback invariant}
+\label{subsec:rollback-analysis}
 \begin{proposition}[Rollback correctness]
 \label{prop:rollback}
 If a tentative update is rejected, restoring the parameter and optimizer
@@ -731,19 +757,26 @@ none of the three is a claim of universal human-preference superiority.
 \section{Experiments}
 \label{sec:experiments}
 
-\subsection{Protocol and questions}
+\subsection{Experimental setup}
 We evaluate four predeclared questions: whether calibrated extreme-value credit improves the held-out robust $\mathbb{E}[\max_{j\leq 32}R_j]$ endpoint; whether any change persists for the nominal ordinal maximum and top-rating probability; whether mean reward, independent quality, and reference-policy KL satisfy their floors; and whether independent generated-output proxies reveal target-reward exploitation. The protocol uses Qwen2.5-1.5B-Instruct as policy, a frozen Qwen2.5-14B ordinal Moment RM trained from HelpSteer2 repeated helpfulness ratings and preference pairs \citep{wang2024helpsteer2}, and an independently trained Qwen2.5-14B Quality RM. All data partitions and evaluator versions are content-hashed.
 
 Each confirmatory method uses seeds $\{314,2718,1618\}$, 512 test prompts per seed, $N=32$, 300 policy steps, two prompts per step, learning rate $2\times10^{-5}$, one PPO epoch, clip $0.2$, LoRA rank 8, temperature 1, top-$p=1$, maximum prompt length 384 and response length 64. The target KL is 0.02 and the hard rollback level is 0.04. Development seed 42 is excluded from all intervals. Calibration, training, held-out KL, and generated-output evaluation use disjoint prompt partitions.
 
-\subsection{Comparators and analysis}
+\subsection{Evaluation design}
 The primary baselines are Mean-PPO + Q, GRPO + Q, and Scalar Max@32-PPO + Q. Additional comparisons are Entropic-PPO, Nominal Ordinal EV-PPO, Gaussian EV-PPO, Top-4 PPO, and ablations removing the mean or Quality RM floor. An evaluation-only Best-of-32 row samples and ranks 32 base-policy responses and is not a compute-matched training baseline. We report robust and nominal ordinal maxima, probability of at least one rating-four response, candidate mean/variance, independent quality, response length, full-vocabulary held-out KL, constraint residuals, accepted updates, and rollback counts.
 
-The primary aggregate resamples seeds and prompts hierarchically; paired prompt contrasts use two-sided 95\% intervals and one-sided sign-flip tests. All seeds and all predeclared gates are retained. Qwen2.5 and ArmoRM generated-output comparisons are model-based proxies, not human labels. Existing RewardBench and Skywork human-labeled pairs are used only in a static policy-likelihood lockbox.
+Aggregate uncertainty uses hierarchical seed-and-prompt resampling; all seeds
+and predeclared gates are retained. Generated-output comparisons are model-based
+proxies, while existing human-labeled pairs are used only in a static lockbox.
 
-\subsection{Aggregate results}
+\subsection{Main results}
+StableMax-PPO reaches a robust expected maximum of $3.458$ while reducing
+held-out KL to $0.034$, compared with $3.424$ and $0.070$ for Mean-PPO.
+GRPO and Scalar max-PPO attain higher robust maxima, so these results identify
+a lower-drift operating point rather than universal dominance.
+
 \begin{table}[t]
-\caption{Aggregate robust expected maximum across three seeds and 512 prompts per seed.}
+\caption{Primary aggregate results (three seeds, 512 prompts per seed).}
 \label{tab:aggregate}
 \centering\scriptsize
 \begin{tabular}{lcccc}
@@ -761,21 +794,13 @@ Best-of-32 (base) & 3.086 & [3.045, 3.125] & -- & --\\
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=\linewidth]{figures/max_kl_pareto.pdf}
-\caption{Robust-max--KL trade-off for the primary methods. Large filled markers
-show three-seed aggregates; open markers show individual seeds. Vertical bars
-are aggregate 95\% confidence intervals for robust expected maximum. Relative
-to GRPO, \method{} reduces held-out KL while retaining a competitive robust
-maximum; relative to Mean-PPO, it also moves to a lower-KL operating point.
-Percentages in the supplementary tables describe separate normalized changes
-and do not equate the two metrics' units.}
+\includegraphics[width=0.70\linewidth]{figures/max_kl_pareto.pdf}
+\caption{Robust maximum versus held-out KL. Filled markers are three-seed
+aggregates; open markers are individual seeds and bars are 95\% intervals.}
 \label{fig:max-kl-pareto}
 \end{figure}
 
-Figure~\ref{fig:max-kl-pareto} makes the trade-off explicit. \method{} has a lower held-out KL than the mean and group-relative baselines, and its rollback rate is correspondingly lower; its robust maximum remains competitive but does not dominate the strongest max-oriented comparators. The same pattern appears across seeds and in the ablations: removing a floor changes the endpoint, while the complete method preserves both safeguards. Rollback frequency is an optimization-stability diagnostic, not a population guarantee, and is interpreted jointly with held-out KL, accepted updates, and quality floors. The evidence therefore supports a constrained Pareto point rather than universal improvement.
-
-\subsection{Gates and scientific interpretation}
-The artifact verifier passed for seeds 314, 2718, and 1618. Passed gates are the ArmoRM generated-output proxy, held-out KL superiority versus Mean-PPO and GRPO, nominal mean floor, and quality floor. Failed gates are the Qwen generated-output proxy, robust non-inferiority versus Mean-PPO and GRPO, and the primary comparison versus Scalar Max-PPO. Consequently, the preregistered all-gates field is \texttt{scientific\_success=false}. This is not a formatting failure: it records that the method trades some max-oriented endpoint margin for lower KL and quality safeguards. The data support that trade-off, but not direct human preference or absence of reward hacking.
+Figure~\ref{fig:max-kl-pareto} makes the trade-off explicit: \method{} has lower held-out KL than Mean-PPO and GRPO while retaining a competitive robust maximum, whereas max-oriented comparators remain higher on that endpoint. Rollback frequency is an optimization diagnostic, not a population guarantee; the complete gate ledger and statistical tests are in Appendix~\ref{app:full-experiments}.
 
 \section{Limitations}
 \label{sec:limitations}
@@ -783,19 +808,22 @@ The endpoint is induced by frozen evaluators, and no fresh human labels are
 collected for generated outputs. Model proxies can disagree with human
 judgments; the 1.5B policy versus 14B evaluator capacity gap may induce
 evaluator shift, and three seeds do not establish generalization to other
-scales or domains. Full diagnostics, sensitivity analyses, hashes, and
-verification records are in Appendix~\ref{app:full-experiments} and the
-supplementary artifact.
+scales or domains. Full diagnostics and verification records are in
+Appendix~\ref{app:full-experiments} and the supplementary artifact.
 
-\paragraph{Reproducibility statement.} The supplementary artifact contains the
-exact source, official ICLR style files, bibliography, protocol metadata,
-result tables, terminal verification JSON, and build commands. Model weights,
+\paragraph{Reproducibility statement.} The supplementary artifact provides the
+source, official ICLR style files, bibliography, protocol metadata, result
+tables, verification JSON, and build commands. An anonymous code repository is
+available at \url{https://github.com/LoveGuys-cmd/rlhf-artifact}; model weights,
 credentials, and private data are excluded.
 
+\paragraph{AI use statement.} AI tools assisted with language editing, LaTeX
+troubleshooting, and software debugging; the authors reviewed all derivations,
+claims, code, and submission materials and take responsibility for accuracy.
+
 \paragraph{Ethics statement.} The study uses model-generated text and existing
-preference data, involves no human-subject intervention, and releases no
-personal data. We disclose proxy limitations and possible reward-model
-exploitation.
+preference data, involves no human-subject intervention or personal-data
+release, and discloses proxy limitations and possible reward-model exploitation.
 \label{main-text-end}
 \bibliographystyle{iclr2027_conference}
 \bibliography{references}
@@ -806,7 +834,6 @@ exploitation.
 \renewcommand{\theHalgocf}{appendix.\arabic{algocf}}
 \makeatother
 \input{appendix_theory.tex}
-\input{appendix_algorithm.tex}
 \input{appendix_experiments.tex}
 \section{Artifact and verification records}
 The machine-readable supplementary files include the aggregate JSON, complete per-seed CSV tables, terminal verification records, and SHA-256 manifest.

@@ -6,7 +6,7 @@ finite-budget RLHF experiment. Large model caches, virtual environments,
 credentials, and full checkpoint blobs are intentionally excluded.
 
 The executable experiment implementation is under `code/`. It includes the
-StableMax-PPO/compare-method training loop, frozen-protocol evaluation and
+StableMax-PPO and comparison-method training loop, frozen-protocol evaluation and
 diagnostic scripts, unit tests, and the v8 Slurm entry points. The code is
 portable and does not contain the original compute host paths.
 
