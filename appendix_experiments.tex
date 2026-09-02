@@ -1,0 +1,234 @@
+
+\section{Full experimental protocol}
+\label{app:full-experiments}
+
+\subsection{Experimental questions}
+\label{subsec:experimental-questions}
+
+The experiments are designed to answer four predeclared questions:
+
+\begin{enumerate}
+\item Does StableMax-PPO improve the held-out robust
+\(\mathbb E[\max_{j\le32}R_j]\) objective relative to
+mean optimization and a direct scalar max@32 policy gradient?
+\item Are gains preserved under the nominal exact ordinal maximum and the
+top-rating probability \(\Pr\{\exists j:R_j=4\}\)?
+\item Do nominal expected rating, independent Quality RM score, and
+reference-policy KL remain within their predeclared safeguards?
+\item Do independent generated-output proxies and existing human-labeled
+preference diagnostics provide evidence against target-RM exploitation?
+\end{enumerate}
+
+No result is used to remove a comparator, redefine a gate, or select a more
+favorable protocol.
+
+\subsection{Models, data, and split discipline}
+\label{subsec:models-data}
+
+The policy is Qwen2.5-1.5B-Instruct
+\citep{qwen2024qwen25}.  The frozen Moment RM is a Qwen2.5-14B ordinal
+model trained from HelpSteer2 repeated helpfulness ratings and preference
+pairs \citep{wang2024helpsteer2}.  It exports
+\(p_{\omega,0:4}\) directly; exposing the category probabilities
+does not retrain or alter its accepted checkpoint.  An independently trained
+Qwen2.5-14B scalar Quality RM supplies \(Q_\eta\) and has no
+variance head.  Its frozen 4,096-pair confirmation accuracy is
+\(94.60\%\) with a Wilson lower 95\% bound of
+\(93.87\%\).
+
+All policy, reward-model, evaluator, and lockbox splits are content-hashed.
+Before partitioning RewardBench, we remove prompt and response overlap with
+the policy and Quality-RM data \citep{lambert2024rewardbench}.  The remaining
+calibration, policy-diagnostic, and reserve partitions are also mutually
+prompt- and response-disjoint.  They contain 1,024, 1,024, and 427 pairs,
+respectively.  The sealed Skywork diagnostic contains 4,096 pairs and is
+excluded from Quality-RM training and selection
+\citep{liu2024skyworkreward}.
+
+The Moment RM and policy prompts remain drawn from the same broad HelpSteer2
+domain.  Disjoint rows prevent direct leakage but do not establish
+out-of-domain generalization; this is treated as a limitation rather than
+hidden by the split terminology.
+
+\subsection{Frozen training protocol}
+\label{subsec:experimental-protocol}
+
+The primary response budget is \(N=32\).  Each trainable confirmatory method uses
+three seeds \(\{314,2718,1618\}\), 300 policy steps, two prompts
+per step, 32 responses per prompt, learning rate \(2\times10^{-5}\),
+one PPO epoch, clip \(0.2\), LoRA rank 8 with scale 32, sampling
+temperature 1, \(\mathrm{top}_p=1\), maximum prompt length 384,
+and maximum response length 64. Seed \(42\) is used only for development and real-GPU smoke tests and is
+excluded from all confirmatory intervals, gates, and aggregate claims. The target KL is \(0.02\) and the
+hard rollback level is \(0.04\).  All methods share the same prompt
+stream, generation budget, optimizer class, policy architecture, and
+checkpoint-selection rule.
+
+The non-inferiority floors are frozen before any trainable policy outcome is
+observed.  The reference sample contains 2,048 base-policy responses from 512
+independent policy-training prompts, with four responses per prompt.  For
+\(Z\in\{\mu_\omega,Q_\eta\}\), let
+\(\bar Z_g\) be the four-response prompt mean and let
+\(L_Z\) be the fifth percentile of 10,000 bootstrap means obtained by
+resampling prompts.  The frozen floor is
+
+\begin{equation}
+\label{eq:experimental-floor}
+z_0=L_Z-0.1s_Z,
+\end{equation}
+
+where \(s_Z\) is the response-level standard deviation in the same
+reference sample.  The bootstrap unit, one-sided level, 10,000 draws, sample
+counts, generation seed, bootstrap seed, and practical margin are all
+predeclared.  A separate prompt-disjoint sample of 512 responses from 128
+prompts reports standardized reference-policy shift.  It is diagnostic only
+and cannot accept or reject training.
+
+\subsection{Comparators and ablations}
+\label{subsec:comparators}
+
+The ten trainable methods are:
+
+\begin{enumerate}
+\item \textbf{StableMax-PPO}: the complete method in
+Algorithm~\ref{alg:stablemax}.
+\item \textbf{Mean-PPO + Q}: PPO on
+\(\mu_\omega\) with the same mean, Quality, and KL protocol.
+\item \textbf{GRPO + Q}: group-relative standardized
+\(\mu_\omega\) credit with matched safeguards
+\citep{shao2024deepseekmath,guo2025deepseekr1}.
+\item \textbf{Scalar Max@32-PPO + Q}: exact leave-one-out scalar
+max credit
+\( [\mu_i-\max_{j\ne i}\mu_j]_+ \)
+with matched safeguards
+\citep{tang2025inference,walder2025pkpo,bagirov2025best}.
+\item \textbf{Entropic-PPO + Q}: PPO on
+\(\mathrm{CE}_{\tau}=-\tau\log\sum_r p_{\omega,r}e^{-r/\tau}\),
+using \(\tau=1\).
+\item \textbf{Nominal Ordinal EV-PPO + Q}: exact
+\(J_{32}^{\mathrm{nom}}\) without the calibration ambiguity set.
+\item \textbf{StableMax-PPO without mean floor}: ablates nominal-mean
+non-inferiority.
+\item \textbf{StableMax-PPO without Quality RM}: ablates the independent
+quality safeguard and is excluded from constrained-feasibility claims.
+\item \textbf{Gaussian EV-PPO + Q}: the previous heteroscedastic
+Gaussian expected-maximum objective, retained as a model-assumption ablation.
+\item \textbf{Top-4 PPO + Q}: exact optimization of
+\(\Pr\{\exists j:R_j=4\}\), isolating the highest
+threshold from the complete ordinal maximum.
+\end{enumerate}
+
+An eleventh, evaluation-only \textbf{Best-of-32} row samples 32 responses
+from the untrained base policy and ranks them by
+\(\mu_\omega\).  It is an inference-time reference, not a
+compute-matched training baseline; its generation and scoring cost is reported
+separately.
+
+\begin{table}[t]
+\caption{Complete aggregate table. Values are three-seed robust expected
+maximum, with 95\% confidence intervals, held-out KL, and rollback counts.}
+\label{tab:full-aggregate}
+\centering\scriptsize
+\begin{tabular}{lcccc}
+\toprule
+Method & Robust max & 95\% CI & Held-out KL & Rollbacks/900\\
+\midrule
+StableMax-PPO & 3.458 & [3.411, 3.506] & 0.034 & 279 (31.0\%)\\
+Mean-PPO & 3.424 & [3.354, 3.517] & 0.070 & 527 (58.6\%)\\
+GRPO & 3.555 & [3.530, 3.578] & 0.094 & 741 (82.3\%)\\
+Scalar max-PPO & 3.517 & [3.476, 3.558] & 0.054 & 285 (31.7\%)\\
+Entropic PPO & 3.400 & [3.353, 3.447] & 0.037 & 302 (33.6\%)\\
+Nominal EV-PPO & 3.421 & [3.377, 3.467] & 0.028 & 121 (13.4\%)\\
+StableMax-PPO (no mean floor) & 3.508 & [3.426, 3.574] & 0.048 & 230 (25.6\%)\\
+StableMax-PPO (no quality floor) & 3.467 & [3.402, 3.530] & 0.048 & 329 (36.6\%)\\
+Gaussian EV-PPO & 3.558 & [3.533, 3.581] & 0.061 & 367 (40.8\%)\\
+Top-4 PPO & 3.418 & [3.353, 3.499] & 0.042 & 277 (30.8\%)\\
+Best-of-32 (base) & 3.086 & [3.045, 3.125] & -- & --\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Evaluation endpoints}
+\label{subsec:evaluation-endpoints}
+
+Every method is evaluated on 512 frozen test prompts with newly generated
+groups of 32 responses.  The primary paired prompt-level endpoint is
+\(h_{32}^{\mathrm{rob}}\), exactly matching the StableMax-PPO
+training objective.  Secondary model-based endpoints are
+\(h_{32}^{\mathrm{nom}}\),
+\(U_{32}^{\mathrm{nom}}\), candidate-level
+\(\mu_\omega\), ordinal variance,
+\(p_{\omega,4}\), independent Quality score, reference KL,
+constraint residuals, accepted updates, and exact rollback counts.
+
+Sensitivity at \(N\in\{1,2,4,8,16,32\}\) uses nested
+prefixes of the same cached 32-response groups.  This preserves paired
+comparisons and avoids regenerating a favorable sample for each \(N\).
+The group-level maximum uses all candidates and does not require a selected
+response.  A deployment-style
+\(\arg\max_i\mu_\omega(x,Y_i)\) response is reported
+only as a secondary selector diagnostic.
+
+\subsection{Statistical analysis and success criteria}
+\label{subsec:statistical-analysis}
+
+All seeds are reported separately.  Aggregate uncertainty is estimated by a
+hierarchical bootstrap that resamples seeds and prompts.  Paired prompt-level
+contrasts additionally report one-sided sign-flip randomization tests and
+matched-pairs rank-biserial effect sizes.  The primary superiority gates require the lower endpoint of a two-sided
+95\% hierarchical-bootstrap interval for the StableMax-PPO improvement in
+$h_{32}^{\mathrm{rob}}$ to exceed zero against Mean-PPO, GRPO + Q,
+and Scalar Max@32-PPO.
+
+Safeguard success requires the corresponding interval lower endpoints for
+StableMax-PPO's candidate nominal mean and independent Quality mean to remain at
+or above \(m_0\) and \(q_0\).  A point estimate alone cannot
+satisfy either floor.  The complete scientific-success decision requires all
+predeclared superiority, floor, and generated-output proxy gates; improvement
+under the target RM alone is insufficient.
+
+\subsection{Anti-exploitation and human-grounded diagnostics}
+\label{subsec:anti-exploitation}
+
+Newly generated outputs are compared with Mean-PPO outputs by two frozen
+evaluators: a Qwen2.5-14B judge and ArmoRM
+\citep{zheng2023judging,wang2024interpretable}.  Each evaluator must first
+pass its own frozen RewardBench calibration gate.  Their pairwise judgments
+are model-based proxies, not human labels.  Reward-hacking diagnostics compare
+target-RM improvements with proxy preference, response length, repetition,
+diversity, refusal behavior, and upper-tail strata.  Target-RM improvement
+accompanied by proxy degradation is reported as evidence consistent with
+reward-model exploitation.
+
+RewardBench and Skywork chosen--rejected lockboxes contain previously collected
+human labels.  For each policy, length-normalized chosen--rejected policy
+log-probability accuracy and margin are reported as preference-retention
+diagnostics.  They are not Best-of-32 endpoints and do not label newly sampled
+policy responses.  In particular, a new response cannot be declared human
+preferred merely because it was generated for a prompt that also appears in a
+fixed preference benchmark.
+
+No new human annotation is collected in this protocol.  Therefore, even if
+all anti-exploitation gates pass, the permitted claim is
+\emph{no evidence of exploitation under the measured model-based and
+existing-label diagnostics}.  The experiment cannot establish absence of
+reward hacking or direct human preference for generated outputs.  A blinded
+group-rating packet is emitted so that fresh human evaluation can be added
+later without regenerating or selecting outputs.
+
+\subsection{Reproducibility and reporting}
+\label{subsec:reproducibility}
+
+Code, model adapters, data partitions, floor samples, calibration reports, and
+protocol files are content-hashed before training.  A real-GPU smoke test must
+execute every declared objective, verify finite applicable metrics, verify
+constraint activation, and test exact parameter and optimizer rollback.
+Formal training and evaluation run only after these checks pass.  Technical
+failures are versioned and corrected with regression tests.  Unfavorable
+scientific outcomes are reported without changing seeds, thresholds,
+comparators, evaluators, or success criteria.
+
+The 1.5B policy is evaluated by 14B reward and proxy models.  This capacity
+gap may improve discrimination but may also create systematic evaluator shift.
+The three-seed design measures optimization variability; it does not replace
+replication at other model scales or fresh blinded labels.

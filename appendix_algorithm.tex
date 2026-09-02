@@ -1,0 +1,43 @@
+\section{Implementation Details for \method}
+\label{app:algorithm}
+
+This appendix records implementation conventions for Algorithm~\ref{alg:stablemax};
+it is not a second algorithm. Model identifiers, seeds, and acceptance
+thresholds are specified in Appendix~\ref{app:full-experiments}.
+
+For each prompt $x_b$, the implementation caches behavior-policy token log
+probabilities and response masks before evaluating any reward model. The five
+ordinal probabilities are converted to prefix CDFs. For
+$t=0,\ldots,3$, the robust envelope is
+\[
+\bar F_{b,i}(t)=\min\{1,F_{\omega,b,i}(t)+\varepsilon_{\rm cal}\},
+\quad \bar F_{b,i}(-1)=0,\quad \bar F_{b,i}(4)=1.
+\]
+The robust probabilities are adjacent differences of this envelope. Prefix
+and suffix products compute all group values and leave-one-out credits in
+$O(BN|\mathcal R|)$ time without enumerating rating tuples.
+
+The constrained credit used by the PPO surrogate is
+\[
+\tilde q_{b,i}=q^{\rm rob}_{b,i}
+ +\frac{\lambda_m}{N}\mu_\omega(x_b,Y_{b,i})
+ +\frac{\lambda_q}{N}Q_\eta(x_b,Y_{b,i}),
+\qquad
+A_{b,i}=N[\tilde q_{b,i}-b_\psi(x_b)].
+\]
+The prompt baseline is fitted only from accepted transitions. Dual variables
+use projected updates after acceptance; rejected steps leave all controller
+state unchanged. The lagged RMS scale is computed from accepted credits only,
+so a rejected outlier cannot change the next normalization factor.
+
+Before the optimizer step, the implementation snapshots all trainable policy
+parameters and the complete optimizer state, including momentum and adaptive
+variance buffers. It evaluates full-categorical token KL on the same rollout
+states after the tentative step. If the hard threshold is exceeded, both
+snapshots are restored and no baseline, dual, KL-controller, or RMS state is
+advanced. This is an exact batch-level rollback invariant; it does not imply
+a population KL bound.
+
+All floating-point reductions use deterministic tensor order where supported.
+The supplementary code contains tests for ordinal identities, credit
+reductions, finite metrics, protocol hashes, and rollback restoration.

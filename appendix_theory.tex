@@ -1,0 +1,258 @@
+
+\section{Detailed theoretical analysis}
+\label{app:theory}
+
+\begin{proposition}[Finite-support threshold decomposition]
+\label{prop:threshold-decomposition}
+For conditionally independent ratings supported on
+\(\mathcal R=\{0,1,2,3,4\}\),
+\cref{eq:ordinal-max-closed} is exact, lies in \([0,4]\), and is
+nondecreasing under first-order stochastic improvement of any candidate.
+Moreover, \cref{eq:any-four} is its highest-threshold component.
+\end{proposition}
+
+\begin{proof}
+For any integer-valued \(Z\in\{0,\ldots,4\}\), the
+tail-sum identity gives
+\(\mathbb E[Z]
+=\sum_{t=1}^{4}\Pr\{Z\ge t\}\).
+Taking \(Z=\max_jR_j\) and using (A1),
+
+\[
+\Pr\{\max_jR_j<t\mid x,Y_{1:N}\}
+=\prod_{j=1}^{N}F_{\omega,j}(t-1).
+\]
+
+Substitution proves \cref{eq:ordinal-max-closed}.  Each term lies in
+\([0,1]\), so the sum lies in \([0,4]\).  First-order
+stochastic improvement decreases a candidate CDF and therefore cannot
+decrease any summand.  At \(t=4\),
+\(F_{\omega,j}(3)=1-p_{\omega,4}(x,Y_j)\), giving
+\cref{eq:any-four}.
+\end{proof}
+
+\begin{proposition}[Prompt-cluster calibration statement]
+\label{prop:calibration-radius}
+Assume the validation prompt clusters are independent and that the RM is
+fixed before evaluating them.  Then the radius in
+\cref{eq:epsilon-calibration} satisfies, with probability at least
+\(1-\alpha_{\mathrm{cal}}\),
+
+\begin{equation}
+\label{eq:population-calibration}
+\mathbb E[D_t]
+\le\varepsilon_{\mathrm{cal}}
+\qquad
+\text{simultaneously for }t=0,1,2,3.
+\end{equation}
+\end{proposition}
+
+\begin{proof}
+Conditional on the frozen responses and predictions, changing all binary
+indicators in a prompt cluster from zero to one changes \(D_{g,t}\) by
+at most one.  Thus each cluster residual lies in an interval of width one.
+Hoeffding's inequality gives
+
+\[
+\Pr\left(
+\mathbb E[D_t]-\widehat d_t
+>\sqrt{
+\frac{\log(4/\alpha_{\mathrm{cal}})}
+{2G_{\mathrm{cal}}}}
+\right)
+\le\frac{\alpha_{\mathrm{cal}}}{4}.
+\]
+
+A union bound over four thresholds proves the simultaneous event.  On that
+event, every right-hand side is bounded by the unclipped expression in
+\cref{eq:epsilon-calibration}.  If clipping is active,
+\(\varepsilon_{\mathrm{cal}}=1\), while
+\(\mathbb E[D_t]\le1\), so the claim still holds.
+\end{proof}
+
+\paragraph{Scope of the calibration proposition.}
+\Cref{prop:calibration-radius} is a population-average statement over
+the validation prompt distribution.  It is not a distribution-free,
+pointwise guarantee that every conditional CDF lies in the ambiguity set.
+The pointwise premise required by the next theorem is therefore stated
+explicitly rather than inferred from a small number of repeated ratings.
+
+\begin{theorem}[Closed-form worst-case distribution]
+\label{thm:robust-inner}
+For each candidate, \(\overline p_j\) in
+\cref{eq:robust-probabilities} is the first-order stochastically smallest
+member of
+\(\mathcal U_{\varepsilon_{\mathrm{cal}}}
+(p_{\omega,j})\).  The product distribution
+\(\bigotimes_{j=1}^{N}\overline p_j\) jointly minimizes the
+expected maximum, and the minimum is
+\cref{eq:robust-max-closed}.
+\end{theorem}
+
+\begin{proof}
+The envelope \(\overline F_j\) is nondecreasing, has boundary
+values zero and one, and therefore defines a valid categorical distribution.
+For every feasible \(q_j\in\mathcal U\),
+
+\[
+F_{q_j}(t)\le\overline F_j(t),
+\qquad t=0,1,2,3.
+\]
+
+Hence \(q_j\) first-order stochastically dominates
+\(\overline p_j\), or equivalently
+\(\overline p_j\) is stochastically smallest.  The maximum is
+coordinatewise nondecreasing in its ratings, so replacing every feasible
+candidate by \(\overline p_j\) cannot increase its expectation.
+The envelope itself is feasible and thus attains the infimum.  Applying
+\cref{prop:threshold-decomposition} gives the stated closed form.
+\end{proof}
+
+\begin{theorem}[Coverage and misspecification bound]
+\label{thm:robust-coverage}
+Let \(F_j^*\) be the true conditional CDF under the target annotation
+protocol.  If
+
+\begin{equation}
+\label{eq:pointwise-coverage}
+F_j^*(t)\le\overline F_j(t)
+\quad
+\text{for all }j=1,\ldots,N
+\text{ and }t=0,1,2,3,
+\end{equation}
+
+then, conditionally on \((x,Y_{1:N})\),
+
+\begin{equation}
+\label{eq:robust-lower-bound}
+\mathbb E_*\left[\max_jR_j\mid x,Y_{1:N}\right]
+\ge h_N^{\mathrm{rob}}(x,Y_{1:N}).
+\end{equation}
+
+Without exact coverage, define
+
+\[
+\xi(x,Y_{1:N})
+:=\max_{j,t}
+\left[F_j^*(t)-\overline F_j(t)\right]_+.
+\]
+
+Then
+
+\begin{equation}
+\label{eq:misspecification-bound}
+\mathbb E_*\left[\max_jR_j\mid x,Y_{1:N}\right]
+\ge
+h_N^{\mathrm{rob}}(x,Y_{1:N})-4N\xi(x,Y_{1:N}).
+\end{equation}
+
+Both inequalities remain valid after expectation over prompts and policy
+outputs.
+\end{theorem}
+
+\begin{proof}
+Under \cref{eq:pointwise-coverage}, each true rating distribution
+first-order stochastically dominates \(\overline p_j\).
+Monotonicity of the maximum proves
+\cref{eq:robust-lower-bound}.  In the misspecified case, for
+\(a_j,b_j\in[0,1]\),
+
+\[
+\prod_ja_j-\prod_jb_j
+\le\sum_j(a_j-b_j)_+.
+\]
+
+Apply this inequality with
+\(a_j=F_j^*(t-1)\) and
+\(b_j=\overline F_j(t-1)\) at each of four thresholds.
+The discrepancy is at most \(N\xi\) per threshold and therefore
+at most \(4N\xi\) after summation.  Taking outer expectations
+preserves the inequalities.
+\end{proof}
+
+\begin{theorem}[Exact marginal credit and policy gradient]
+\label{thm:robust-policy-gradient}
+Under (A1)--(A3), the credit in \cref{eq:robust-credit} equals
+\cref{eq:robust-credit-closed}, and
+
+\begin{equation}
+\label{eq:robust-policy-gradient}
+\nabla_\theta J_N^{\mathrm{rob}}(\theta)
+=\mathbb E\left[
+\sum_{i=1}^{N}
+q_i^{\mathrm{rob}}(x,Y_{1:N})
+\nabla_\theta
+\log\pi_\theta(Y_i\mid x)
+\right].
+\end{equation}
+\end{theorem}
+
+\begin{proof}
+For nonnegative integer ratings,
+
+\[
+(\overline R_i-\overline M_{-i})_+
+=\sum_{t=1}^{4}
+\mathbf 1\{
+\overline R_i\ge t,
+\overline M_{-i}<t
+\}.
+\]
+
+Taking conditional expectations and using (A1) gives
+
+\[
+\Pr\{
+\overline R_i\ge t,
+\overline M_{-i}<t
+\mid x,Y_{1:N}
+\}
+=\left[1-\overline F_i(t-1)\right]
+\prod_{j\ne i}\overline F_j(t-1),
+\]
+
+which proves \cref{eq:robust-credit-closed}.  For the gradient, fix
+\(i\) and condition on \((x,Y_{-i})\).  The group value
+decomposes as
+
+\[
+h_N^{\mathrm{rob}}
+=\mathbb E[
+\overline M_{-i}\mid x,Y_{-i}]
++q_i^{\mathrm{rob}}.
+\]
+
+The first term is independent of \(Y_i\), and the score-function
+identity implies that its product with
+\(\nabla_\theta\log\pi_\theta(Y_i\mid x)\)
+has conditional expectation zero.  Applying the likelihood-ratio derivative
+to all \(N\) iid responses and summing the remaining terms proves
+\cref{eq:robust-policy-gradient}.
+\end{proof}
+
+\begin{proposition}[\(N=1\) reduction and complexity]
+\label{cor:n1-reduction}
+For \(N=1\),
+
+\[
+h_1^{\mathrm{rob}}
+=q_1^{\mathrm{rob}}
+=\sum_{r=0}^{4}r\overline p_{1,r}.
+\]
+
+Thus the upper-tail reward component reduces exactly to robust mean reward.
+For general \(N\), all group values and marginal credits can be
+computed in \(O(N|\mathcal R|)\) time using threshold-wise prefix
+and suffix products.
+\end{proposition}
+
+\begin{proof}
+With one candidate, the empty opponent maximum is zero, so
+\((\overline R_1-0)_+=\overline R_1\).  The first equality
+follows.  For complexity, each threshold requires one forward and one
+backward product scan; there are
+\(|\mathcal R|-1=4\) nontrivial thresholds.
+\end{proof}
+
+\subsection{Constrained policy objective}
+\label{subsec:constraints}

@@ -1,0 +1,231 @@
+{
+  "absence_of_reward_hacking_proved": false,
+  "armorm_generated_output_proxy": {
+    "ci_high": 0.5442708333333334,
+    "ci_low": 0.4580078125,
+    "preference_mean": 0.501953125
+  },
+  "artifact_sha256": {
+    "exp/stablemax_ppo_publication_v8/seed1618/TERMINAL_VERIFICATION.json": "c04537d95b38bec5e4937c91af2064e1424a990135ece796209313c2ecb4541a",
+    "exp/stablemax_ppo_publication_v8/seed1618/eval/HELDOUT_KL.json": "5151e6922ff76d51e50a9b164b3a75d70daf05c77204806cfe0f5d334586a654",
+    "exp/stablemax_ppo_publication_v8/seed1618/eval/best_of_n_seed1618_responses.jsonl": "254473ab8961aeea025049f212a2f448899987ac2220d9ac142ac7f05f1ca3cd",
+    "exp/stablemax_ppo_publication_v8/seed1618/eval/entropic_ppo_seed1618_responses.jsonl": "980f2c6104cd9a15038a51fd5d0e0f5dd8918835a0b97b56799df1ca21824b22",
+    "exp/stablemax_ppo_publication_v8/seed1618/eval/ev_ppo_no_mean_seed1618_responses.jsonl": "0dc6f907d28ff140327c655f4f9cd3cf68628ba5c5c0fd895fdd5d4206440356",
+    "exp/stablemax_ppo_publication_v8/seed1618/eval/ev_ppo_no_quality_seed1618_responses.jsonl": "6ecf5b4fe64c88d36252f4b8b0a38c4ba3a55e7f02f20677662663dbfe043620",
+    "exp/stablemax_ppo_publication_v8/seed1618/eval/ev_ppo_seed1618_responses.jsonl": "5c0920cffe52c1e46d8b65335eb85553d95f86ee8463f63126ed4d2d71672f5a",
+    "exp/stablemax_ppo_publication_v8/seed1618/eval/gaussian_ev_ppo_seed1618_responses.jsonl": "f46c5166e9e6db3f5882f3cbe96d1eba14168cbe0e6de311640550024d0e7e03",
+    "exp/stablemax_ppo_publication_v8/seed1618/eval/nominal_ev_ppo_seed1618_responses.jsonl": "b12e2f4d195d490c8cc64daa9eda8e3e34dcd77b795aa26fe548eaf9c41fdfe3",
+    "exp/stablemax_ppo_publication_v8/seed1618/eval/scalar_max_ppo_seed1618_responses.jsonl": "ccbb5998158c9b5f8ae91b3c1f25ed5843d5bf960e23fcd04534f3b66a7e6143",
+    "exp/stablemax_ppo_publication_v8/seed1618/eval/top4_ppo_seed1618_responses.jsonl": "8973b10a63f35e8851ea9a735526622711b0f47f290fdb7dd4b3db785df0ae6e",
+    "exp/stablemax_ppo_publication_v8/seed1618/eval/vanilla_grpo_seed1618_responses.jsonl": "3c7d7a3a90d89d7106b7575f198e2d35e575a05f69744a9bcd4053c0b153c11b",
+    "exp/stablemax_ppo_publication_v8/seed1618/eval/vanilla_ppo_seed1618_responses.jsonl": "9a96d0cea933468e4c81bb923bc1b37c954408c7f0169042c2e4e568c8a27fcb",
+    "exp/stablemax_ppo_publication_v8/seed2718/TERMINAL_VERIFICATION.json": "dd555810b48f605d18fd2e623bbf4479ac118d713a38a0e114fd07aac3333077",
+    "exp/stablemax_ppo_publication_v8/seed2718/eval/HELDOUT_KL.json": "403e027f0dc9ed966b3b12552b7a64bf52396b024066e7021b7a7cf3a647c0e6",
+    "exp/stablemax_ppo_publication_v8/seed2718/eval/best_of_n_seed2718_responses.jsonl": "95da8a0f5807c5ac554a95f3d7bd5525542f1b615705fc0b7131b1e8e759bed1",
+    "exp/stablemax_ppo_publication_v8/seed2718/eval/entropic_ppo_seed2718_responses.jsonl": "9a9cd438d38b722bb2889ea3c7a828dcabe058d6ec4841ce265a3960c3a395a1",
+    "exp/stablemax_ppo_publication_v8/seed2718/eval/ev_ppo_no_mean_seed2718_responses.jsonl": "c8d9648768dc6abefa4f88cd33545f9bb9745c8404c811fbfc81cfee8faa97ed",
+    "exp/stablemax_ppo_publication_v8/seed2718/eval/ev_ppo_no_quality_seed2718_responses.jsonl": "7c94fedb7d076868e1facf5d07b4107d197c6d70ff968e8f9e9ba0116128fe1d",
+    "exp/stablemax_ppo_publication_v8/seed2718/eval/ev_ppo_seed2718_responses.jsonl": "1ad052b9237d23b1dec4863cbcb4768ac7968bb9ad37cfa30a26fd42d1161a2c",
+    "exp/stablemax_ppo_publication_v8/seed2718/eval/gaussian_ev_ppo_seed2718_responses.jsonl": "ab6957dd28c632ca8adbf3dffe43ae18805bb0da26bab905b8f62050d453ae38",
+    "exp/stablemax_ppo_publication_v8/seed2718/eval/nominal_ev_ppo_seed2718_responses.jsonl": "4c858aade1900ab4fcaddc47af90a4d155213035f5fe43c765e42ece512d570c",
+    "exp/stablemax_ppo_publication_v8/seed2718/eval/scalar_max_ppo_seed2718_responses.jsonl": "eddd2f7cdd28d64d6ebca2b6f015fe594693db079e0cd0e19c854a321ef783ca",
+    "exp/stablemax_ppo_publication_v8/seed2718/eval/top4_ppo_seed2718_responses.jsonl": "d15ceb090428586db0b7a05bdfe8c532c7eaf6d8f3641886e08f8de1357566ac",
+    "exp/stablemax_ppo_publication_v8/seed2718/eval/vanilla_grpo_seed2718_responses.jsonl": "c1d08c191219bf5af9cffcdbbb3b762f6b29a4f1c0ec44a48b01f844f0815f73",
+    "exp/stablemax_ppo_publication_v8/seed2718/eval/vanilla_ppo_seed2718_responses.jsonl": "103d37bba766c97fc056450876e6d4ba415615fa40ddaa21bcc87d6fd451aa38",
+    "exp/stablemax_ppo_publication_v8/seed314/TERMINAL_VERIFICATION.json": "a4256b2b4124bac14fa0cc6247ed5afe9ed97a416e544cbd4cfcf58dd73da169",
+    "exp/stablemax_ppo_publication_v8/seed314/eval/HELDOUT_KL.json": "9104288bb21f6940993156293a6605a3aaa83ddea303de87fe3f52c2f599e15a",
+    "exp/stablemax_ppo_publication_v8/seed314/eval/best_of_n_seed314_responses.jsonl": "5199d087d71537bc25b159219c55c98b3deedd088c022b0db868eda01c855af7",
+    "exp/stablemax_ppo_publication_v8/seed314/eval/entropic_ppo_seed314_responses.jsonl": "eec985ffd61018de95eeca9b22f67b0c841adfb9c0a5760ddf7c585b55ff2be3",
+    "exp/stablemax_ppo_publication_v8/seed314/eval/ev_ppo_no_mean_seed314_responses.jsonl": "acc0038b95cf3b665bf66668017c23ee65dd32a564ff276e0f84a3113af3a9f0",
+    "exp/stablemax_ppo_publication_v8/seed314/eval/ev_ppo_no_quality_seed314_responses.jsonl": "a6cfb9eb5589a107f4587dede89c13be0b5896c779e1b057e46fe5a0390e9cca",
+    "exp/stablemax_ppo_publication_v8/seed314/eval/ev_ppo_seed314_responses.jsonl": "e620e0fc2452a52b357f76212bc980f6a69116ba0be7c795b3081f5b0a1c9205",
+    "exp/stablemax_ppo_publication_v8/seed314/eval/gaussian_ev_ppo_seed314_responses.jsonl": "d2c6d31a431da45115d1c304f1997fee228401358565023d9973e07cb4aa2349",
+    "exp/stablemax_ppo_publication_v8/seed314/eval/nominal_ev_ppo_seed314_responses.jsonl": "55afa3598b9518a83d964915896f6e100903b5f585d14dc1739675a35f512697",
+    "exp/stablemax_ppo_publication_v8/seed314/eval/scalar_max_ppo_seed314_responses.jsonl": "89a4e8afdc1e45ed9a6ec573a42d4b403ed1bc61dec6f9fe8a5e878cc8fc0d63",
+    "exp/stablemax_ppo_publication_v8/seed314/eval/top4_ppo_seed314_responses.jsonl": "a97a5d9baebf427338cb169a6700da5ee08c83a731f82ddff0b0b7bf9015cb0e",
+    "exp/stablemax_ppo_publication_v8/seed314/eval/vanilla_grpo_seed314_responses.jsonl": "93280fca62d071ebd2f7edf550daae81e39e3dfc7c5f07b359e74debda3771c3",
+    "exp/stablemax_ppo_publication_v8/seed314/eval/vanilla_ppo_seed314_responses.jsonl": "38395288981b340b841fadc3e0dfe5a7c470f3bd3bcb611216bd81569ce89ad0"
+  },
+  "best_of_n": 32,
+  "candidate_mean": 1.0158476142690536,
+  "candidate_mean_ci_high": 1.08545660781953,
+  "candidate_mean_ci_low": 0.9551402960314286,
+  "candidate_quality": -0.9948071356598499,
+  "candidate_quality_ci_high": -0.9342812328159892,
+  "candidate_quality_ci_low": -1.0439937959835661,
+  "claim_scope": "confirmatory model-based finite-N upper-tail and constrained-Pareto evidence with nominal-mean, independent-quality, full-vocabulary KL, calibrated generated-output proxies, and report-only existing-label diagnostics",
+  "direct_human_labels_on_new_outputs": false,
+  "gates": {
+    "armorm_generated_proxy": true,
+    "heldout_kl_superiority_vs_grpo": true,
+    "heldout_kl_superiority_vs_mean_ppo": true,
+    "nominal_mean_floor": true,
+    "primary_vs_scalar_max": false,
+    "quality_floor": true,
+    "qwen_generated_proxy": false,
+    "robust_noninferiority_vs_grpo": false,
+    "robust_noninferiority_vs_mean_ppo": false
+  },
+  "heldout_kl_primary": {
+    "vanilla_grpo": {
+      "ci_high": -0.036667839587713996,
+      "ci_low": -0.07323190081962896,
+      "delta_mean": -0.05953132928849906
+    },
+    "vanilla_ppo": {
+      "ci_high": -0.013180998390619912,
+      "ci_low": -0.05045088180199097,
+      "delta_mean": -0.03575226228304018
+    }
+  },
+  "mean_floor": 0.5526558456855127,
+  "method_aggregate": [
+    {
+      "ci_high": 3.506156559694919,
+      "ci_low": 3.4107722713233826,
+      "method": "ev_ppo",
+      "num_seeds": 3,
+      "prompts_per_seed": 512,
+      "robust_expected_max": 3.458355191079658
+    },
+    {
+      "ci_high": 3.5165867700480047,
+      "ci_low": 3.353738771763361,
+      "method": "vanilla_ppo",
+      "num_seeds": 3,
+      "prompts_per_seed": 512,
+      "robust_expected_max": 3.4244304744683265
+    },
+    {
+      "ci_high": 3.578231462366779,
+      "ci_low": 3.5302801600328126,
+      "method": "vanilla_grpo",
+      "num_seeds": 3,
+      "prompts_per_seed": 512,
+      "robust_expected_max": 3.5545488848096576
+    },
+    {
+      "ci_high": 3.5583681184806215,
+      "ci_low": 3.4764902656244185,
+      "method": "scalar_max_ppo",
+      "num_seeds": 3,
+      "prompts_per_seed": 512,
+      "robust_expected_max": 3.516939397485016
+    },
+    {
+      "ci_high": 3.446593143565829,
+      "ci_low": 3.352669351548912,
+      "method": "entropic_ppo",
+      "num_seeds": 3,
+      "prompts_per_seed": 512,
+      "robust_expected_max": 3.399766723477123
+    },
+    {
+      "ci_high": 3.4670744943185863,
+      "ci_low": 3.377303791110811,
+      "method": "nominal_ev_ppo",
+      "num_seeds": 3,
+      "prompts_per_seed": 512,
+      "robust_expected_max": 3.4208128017235064
+    },
+    {
+      "ci_high": 3.57359850778475,
+      "ci_low": 3.425922579482512,
+      "method": "ev_ppo_no_mean",
+      "num_seeds": 3,
+      "prompts_per_seed": 512,
+      "robust_expected_max": 3.5079843162584283
+    },
+    {
+      "ci_high": 3.529744401663151,
+      "ci_low": 3.402091827976596,
+      "method": "ev_ppo_no_quality",
+      "num_seeds": 3,
+      "prompts_per_seed": 512,
+      "robust_expected_max": 3.466636606517227
+    },
+    {
+      "ci_high": 3.5811542296322854,
+      "ci_low": 3.532866572795374,
+      "method": "gaussian_ev_ppo",
+      "num_seeds": 3,
+      "prompts_per_seed": 512,
+      "robust_expected_max": 3.5576140393684543
+    },
+    {
+      "ci_high": 3.498683834521564,
+      "ci_low": 3.35348797558555,
+      "method": "top4_ppo",
+      "num_seeds": 3,
+      "prompts_per_seed": 512,
+      "robust_expected_max": 3.4177405696234815
+    },
+    {
+      "ci_high": 3.125201144930788,
+      "ci_low": 3.045306190041076,
+      "method": "best_of_n",
+      "num_seeds": 3,
+      "prompts_per_seed": 512,
+      "robust_expected_max": 3.0856328196885117
+    }
+  ],
+  "model_based_anti_exploitation_battery_passed": false,
+  "passed_artifact_verification": true,
+  "primary": {
+    "scalar_max_ppo": {
+      "ci_high": -0.010108678305815683,
+      "ci_low": -0.1024141391767121,
+      "delta_mean": -0.05858420640535796,
+      "paired_rank_biserial": -0.22088353413654618,
+      "paired_sign_flip_p_one_sided": 1.0,
+      "randomization_unit": "prompt_after_averaging_three_seed_effects"
+    },
+    "vanilla_grpo": {
+      "ci_high": -0.06086979771628176,
+      "ci_low": -0.13357133543995572,
+      "delta_mean": -0.09619369372999965,
+      "paired_rank_biserial": -0.5220883534136547,
+      "paired_sign_flip_p_one_sided": 1.0,
+      "randomization_unit": "prompt_after_averaging_three_seed_effects"
+    },
+    "vanilla_ppo": {
+      "ci_high": 0.13038587508183666,
+      "ci_low": -0.06861258589293823,
+      "delta_mean": 0.03392471661133147,
+      "paired_rank_biserial": 0.3584158415841584,
+      "paired_sign_flip_p_one_sided": 0.00019998000199980003,
+      "randomization_unit": "prompt_after_averaging_three_seed_effects"
+    }
+  },
+  "protocol": "stablemax-ppo-publication-v8-multiseed-terminal",
+  "quality_floor": -1.2435394268767141,
+  "qwen_generated_output_proxy": {
+    "ci_high": 0.509765625,
+    "ci_low": 0.4778645833333333,
+    "preference_mean": 0.4938151041666667
+  },
+  "robust_epsilon": 0.04680826120821986,
+  "scientific_success": false,
+  "seeds": [
+    314,
+    2718,
+    1618
+  ],
+  "static_human_label_lockbox_diagnostics": {
+    "best_of_n_endpoint": false,
+    "generated_output_human_preference": false,
+    "interpretation": "length-normalized policy-likelihood retention on fixed human-labeled chosen/rejected pairs",
+    "rewardbench_policy_likelihood": {
+      "ci_high": 0.025065104166666668,
+      "ci_low": 0.004231770833333333,
+      "delta_mean": 0.0146484375
+    },
+    "selection_criterion": false,
+    "skywork_policy_likelihood": {
+      "ci_high": -0.001953125,
+      "ci_low": -0.021158854166666668,
+      "delta_mean": -0.011393229166666666
+    }
+  },
+  "static_lockbox_diagnostics_are_selection_criteria": false
+}
