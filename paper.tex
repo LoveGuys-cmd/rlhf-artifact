@@ -753,8 +753,9 @@ the complete predeclared gate ledger is reported in the appendix.
 
 \subsection{Main results}
 StableMax-PPO reaches a robust expected maximum of $3.458$ while reducing
-held-out KL to $0.034$, compared with $3.424$ and $0.070$ for Mean-PPO.  The
-same controller rejects 31.0\% of tentative updates, versus 58.6\% for
+held-out KL to $0.034$, compared with $3.424$ and $0.070$ for Mean-PPO.  Under
+the matched rollback controller, it rejects 31.0\% of tentative updates,
+versus 58.6\% for
 Mean-PPO and 82.3\% for GRPO.  GRPO and Scalar max-PPO attain higher robust
 maxima, so the evidence identifies a lower-drift operating point rather than
 universal dominance.
