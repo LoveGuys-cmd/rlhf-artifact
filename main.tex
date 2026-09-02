@@ -197,21 +197,6 @@ and \(\pi_\mathrm{ref}\) is a frozen reference policy.  The subscripts
 \(\omega\) and \(\eta\) distinguish the two evaluators; neither
 belongs to the trainable policy parameter \(\theta\).
 
-\paragraph{Relation to existing objectives.}
-\method{} builds on PPO and prior inference-aware, pass@\(k\), max@\(k\), and
-Best-of-\(N\) policy-gradient objectives
-\citep{chow2025inference,tang2025inference,walder2025pkpo,
-bagirov2025best,li2026posttraining,poiani2026maxk}; we do not claim the first
-finite-budget maximum objective.  Our distinction is the combination of a
-frozen bounded ordinal reward distribution, an exact finite-\(N\) order
-statistic, a one-sided calibration ambiguity set, and simultaneous nominal-
-mean, independent-quality, and KL safeguards.  Unlike distributional RL,
-which learns discounted-return distributions with Bellman backups
-\citep{bellemare2017distributional,dabney2018distributional}, \method{} applies
-an order statistic to terminal annotation predictions; unlike robust MDPs
-\citep{iyengar2005robust,nilim2005robust}, its ambiguity set is over five
-terminal rating categories rather than transition kernels.
-
 \subsection{Frozen ordinal reward model}
 \label{subsec:ordinal-rm}
 
@@ -454,6 +439,21 @@ response-level Lagrangian credit and projected dual updates used by the
 algorithm are given in Section~\ref{sec:method}; the independent Quality RM
 is a safeguard against evaluator-specific overoptimization, not a proof that
 reward hacking is impossible \citep{gao2023scaling,achiam2017constrained}.
+
+\paragraph{Relation to existing objectives.}
+\method{} builds on PPO and prior inference-aware, pass@\(k\), max@\(k\), and
+Best-of-\(N\) policy-gradient objectives
+\citep{chow2025inference,tang2025inference,walder2025pkpo,
+bagirov2025best,li2026posttraining,poiani2026maxk}; we do not claim the first
+finite-budget maximum objective.  Our distinction is the combination of a
+frozen bounded ordinal reward distribution, an exact finite-\(N\) order
+statistic, a one-sided calibration ambiguity set, and simultaneous nominal-
+mean, independent-quality, and KL safeguards.  Unlike distributional RL,
+which learns discounted-return distributions with Bellman backups
+\citep{bellemare2017distributional,dabney2018distributional}, \method{} applies
+an order statistic to terminal annotation predictions; unlike robust MDPs
+\citep{iyengar2005robust,nilim2005robust}, its ambiguity set is over five
+terminal rating categories rather than transition kernels.
 
 \section{Method}
 \label{sec:method}
