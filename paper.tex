@@ -197,7 +197,7 @@ and \(\pi_\mathrm{ref}\) is a frozen reference policy.  The subscripts
 \(\omega\) and \(\eta\) distinguish the two evaluators; neither
 belongs to the trainable policy parameter \(\theta\).
 
-\subsection{Relation to existing objectives}
+\paragraph{Position relative to existing objectives.}
 \label{subsec:scope}
 
 \method{} is a policy-gradient method implemented through PPO; it is not a new
@@ -349,6 +349,121 @@ Gaussian tail quantity \(1-\Phi(\kappa_N)\).  Because it retains only
 the highest threshold, \(U_N^{\mathrm{nom}}\) is a diagnostic and an
 ablation objective rather than the primary estimand.
 
+\subsection{Calibration uncertainty and robust objective}
+\label{subsec:robust-objective}
+
+Finite-$N$ maxima can amplify small upper-tail calibration errors.  We
+therefore construct a one-sided ambiguity radius using a validation split that
+is frozen before policy optimization.  Let
+\(g=1,\ldots,G_{\mathrm{cal}}\) index independent prompt clusters,
+and let \(\mathcal A_g\) contain the annotated response events for prompt
+$g$.  For threshold $t\in\{0,1,2,3\}$, define
+
+\begin{equation}
+\label{eq:cluster-residual}
+D_{g,t}=\frac{1}{|\mathcal A_g|}
+\sum_{a\in\mathcal A_g}
+\left[\mathbf 1\{R_{g,a}\le t\}-F_{\omega,g,a}(t)\right].
+\end{equation}
+
+Responses and repeated labels within one prompt are aggregated before
+concentration.  Let
+
+\begin{align}
+\widehat d_t
+&=\frac{1}{G_{\mathrm{cal}}}\sum_{g=1}^{G_{\mathrm{cal}}}D_{g,t},\\
+\varepsilon_{\mathrm{cal}}
+&=\min\!\left\{1,\max_{t=0,\ldots,3}(\widehat d_t)_+
++\sqrt{\frac{\log(4/\alpha_{\mathrm{cal}})}{2G_{\mathrm{cal}}}}\right\}.
+\label{eq:epsilon-calibration}
+\end{align}
+
+Here $\alpha_{\mathrm{cal}}$ is the predeclared one-sided calibration error
+probability.  For any nominal probability vector $p\in\Delta^4$, define
+
+\begin{equation}
+\label{eq:ambiguity-set}
+\mathcal U_\varepsilon(p):=\left\{q\in\Delta^4:
+F_q(t)\le\min\{1,F_p(t)+\varepsilon\},\quad t=0,1,2,3\right\}.
+\end{equation}
+
+This set permits more probability mass on low ratings in the harmful
+direction for maximum optimization; it does not reward variance by itself.
+For candidate $j$, define
+
+\begin{align}
+\overline F_j(t)&:=\min\{1,F_{\omega,j}(t)+\varepsilon_{\mathrm{cal}}\},
+\quad t=0,1,2,3,\\
+\overline F_j(-1)&:=0,\qquad \overline F_j(4):=1,\\
+\overline p_{j,r}&:=\overline F_j(r)-\overline F_j(r-1),
+\quad r=0,\ldots,4.
+\label{eq:robust-probabilities}
+\end{align}
+
+The robust conditional value and policy objective are
+
+\begin{align}
+h_N^{\mathrm{rob}}(x,Y_{1:N})
+&:=\inf_{q_{1:N}\in\prod_{j=1}^{N}\mathcal U_{\varepsilon_{\mathrm{cal}}}(p_{\omega,j})}
+\mathbb E_{R_{1:N}\sim\bigotimes_{j=1}^{N}q_j}
+\left[\max_{1\le j\le N}R_j\right]\\
+&=\sum_{t=1}^{4}\left[1-\prod_{j=1}^{N}\overline F_j(t-1)\right],
+\label{eq:robust-max-closed}\\
+J_N^{\mathrm{rob}}(\theta)
+&:=\mathbb E_{x\sim\mathcal D,\,Y_{1:N}\sim\pi_\theta}
+\left[h_N^{\mathrm{rob}}(x,Y_{1:N})\right].
+\label{eq:robust-primary}
+\end{align}
+
+The envelope is deliberately one-sided: it protects the upper-tail objective
+against underestimation of low-rating mass.  The exact finite-support identity
+and its policy-gradient credit are established in Section~\ref{sec:method}.
+
+\subsection{Constrained policy optimization}
+\label{subsec:constrained-objective}
+
+Optimizing a maximum can concentrate quality in a small fraction of the
+response distribution while degrading typical samples.  It can also exploit
+errors specific to the ordinal RM.  We therefore define two expected-score
+safeguards:
+
+\begin{align}
+M(\theta)&:=\mathbb E_{x,Y\sim\pi_\theta}[\mu_\omega(x,Y)],\\
+Q(\theta)&:=\mathbb E_{x,Y\sim\pi_\theta}[Q_\eta(x,Y)].
+\end{align}
+
+The constants $m_0$ and $q_0$ are predeclared non-inferiority floors derived
+from the frozen reference policy.  Their estimation is an experimental-design
+choice specified in Appendix~\ref{app:full-experiments}.  The constrained
+problem is
+
+\begin{equation}
+\label{eq:constrained-problem}
+\begin{aligned}
+\max_\theta\quad &J_N^{\mathrm{rob}}(\theta)\\
+\text{subject to}\quad
+&M(\theta)\ge m_0,\qquad Q(\theta)\ge q_0,\\
+&\mathbb E_x\!\left[\mathrm{KL}(\pi_\theta(\cdot\mid x)
+\Vert\pi_{\mathrm{ref}}(\cdot\mid x))\right]\le\delta.
+\end{aligned}
+\end{equation}
+
+For dual variables $\lambda_m,\lambda_q\ge0$, define
+
+\begin{equation}
+\label{eq:lagrangian}
+\mathcal J(\theta,\lambda_m,\lambda_q)
+=J_N^{\mathrm{rob}}(\theta)
++\lambda_m[M(\theta)-m_0]+\lambda_q[Q(\theta)-q_0].
+\end{equation}
+
+The primal--dual form is
+\(\max_\theta\min_{\lambda_m,\lambda_q\ge0}\mathcal J\).  The
+response-level Lagrangian credit and projected dual updates used by the
+algorithm are given in Section~\ref{sec:method}; the independent Quality RM
+is a safeguard against evaluator-specific overoptimization, not a proof that
+reward hacking is impossible \citep{gao2023scaling,achiam2017constrained}.
+
 \section{Method}
 \label{sec:method}
 
@@ -357,109 +472,6 @@ keeping the policy close to the reference and preserving ordinary and
 independent quality. Thus the method is a controlled operating point on a
 max--stability frontier. The calibration correction is one component of this
 control; it does not turn rating variance into a bonus.
-
-\subsection{Robust finite-budget objective}
-\label{subsec:robust-objective}
-
-Finite-\(N\) maxima can amplify small upper-tail calibration errors.  We
-therefore construct a one-sided ambiguity radius using a validation split that
-is frozen before policy optimization.  Let
-\(g=1,\ldots,G_{\mathrm{cal}}\) index independent prompt clusters,
-and let \(\mathcal A_g\) contain the annotated response events for
-prompt \(g\).  For threshold \(t\in\{0,1,2,3\}\), define
-
-\begin{equation}
-\label{eq:cluster-residual}
-D_{g,t}
-=\frac{1}{|\mathcal A_g|}
-\sum_{a\in\mathcal A_g}
-\left[
-\mathbf 1\{R_{g,a}\le t\}
--F_{\omega,g,a}(t)
-\right].
-\end{equation}
-
-Responses and repeated labels within one prompt are aggregated before
-concentration.  Let
-
-\begin{align}
-\widehat d_t
-&=\frac{1}{G_{\mathrm{cal}}}
-\sum_{g=1}^{G_{\mathrm{cal}}}D_{g,t},\\
-\varepsilon_{\mathrm{cal}}
-&=\min\!\left\{1,
-\max_{t=0,\ldots,3}(\widehat d_t)_+
-+\sqrt{
-\frac{\log(4/\alpha_{\mathrm{cal}})}
-{2G_{\mathrm{cal}}}}
-\right\}.
-\label{eq:epsilon-calibration}
-\end{align}
-
-Here \(\alpha_{\mathrm{cal}}\) is the predeclared one-sided
-calibration error probability.  For any nominal probability vector
-\(p\in\Delta^4\), where \(\Delta^4\) is the simplex over
-five ratings, define
-
-\begin{equation}
-\label{eq:ambiguity-set}
-\mathcal U_\varepsilon(p)
-:=\left\{
-q\in\Delta^4:
-F_q(t)\le
-\min\{1,F_p(t)+\varepsilon\},
-\quad t=0,1,2,3
-\right\}.
-\end{equation}
-
-This set permits more probability mass on low ratings in the harmful
-direction for maximum optimization.  It does not reward variance by itself.
-For candidate \(j\), define
-
-\begin{align}
-\overline F_j(t)
-&:=\min\{1,F_{\omega,j}(t)
-+\varepsilon_{\mathrm{cal}}\},
-\quad t=0,1,2,3,\\
-\overline F_j(-1)&:=0,
-\qquad
-\overline F_j(4):=1,\\
-\overline p_{j,r}
-&:=\overline F_j(r)-\overline F_j(r-1),
-\quad r=0,\ldots,4.
-\label{eq:robust-probabilities}
-\end{align}
-
-The robust conditional value is the worst finite-\(N\) maximum over the
-product ambiguity set:
-
-\begin{align}
-h_N^{\mathrm{rob}}(x,Y_{1:N})
-&:=\inf_{
-q_{1:N}\in
-\prod_{j=1}^{N}
-\mathcal U_{
-\varepsilon_{\mathrm{cal}}}
-(p_{\omega,j})}
-\mathbb E_{
-R_{1:N}\sim\bigotimes_{j=1}^{N}q_j}
-\left[\max_{1\le j\le N}R_j\right]\\
-&=\sum_{t=1}^{4}
-\left[
-1-\prod_{j=1}^{N}\overline F_j(t-1)
-\right].
-\label{eq:robust-max-closed}
-\end{align}
-
-The primary policy objective is
-
-\begin{equation}
-\label{eq:robust-primary}
-J_N^{\mathrm{rob}}(\theta)
-:=\mathbb E_{x\sim\mathcal D,\;
-Y_{1:N}\sim\pi_\theta}
-\left[h_N^{\mathrm{rob}}(x,Y_{1:N})\right].
-\end{equation}
 
 \begin{theorem}[Exact finite-budget robust maximum]
 \label{thm:main-max}
@@ -508,69 +520,20 @@ credit, not a deterministic statement about human ratings
 \label{thm:main-gradient}
 Under (A1)--(A3), the credit in
 \cref{eq:robust-credit-closed} satisfies
-\begin{equation*}
+\begin{equation}
+\label{eq:robust-policy-gradient}
 \nabla_\theta J_N^{\mathrm{rob}}(\theta)
 =\mathbb E\left[\sum_{i=1}^{N}q_i^{\mathrm{rob}}
 \nabla_\theta\log\pi_\theta(Y_i\mid x)\right].
-\end{equation*}
+\end{equation}
 Thus the response-level estimator is unbiased before PPO clipping.
 \end{theorem}
 
-\subsection{Safeguards and constrained objective}
-\label{subsec:constrained-objective}
+\subsection{Constrained PPO credit}
+\label{subsec:constrained-credit}
 
-Optimizing a maximum can concentrate quality in a small fraction of the
-response distribution while degrading typical samples.  It can also exploit
-errors specific to the ordinal RM.  We therefore define two expected-score
-safeguards:
-
-\begin{align}
-M(\theta)
-&:=\mathbb E_{x,Y\sim\pi_\theta}
-[\mu_\omega(x,Y)],\\
-Q(\theta)
-&:=\mathbb E_{x,Y\sim\pi_\theta}
-[Q_\eta(x,Y)].
-\end{align}
-
-The constants \(m_0\) and \(q_0\) are predeclared
-non-inferiority floors derived from the frozen reference policy.  Their
-estimation is an experimental-design choice and is specified in
-\cref{subsec:experimental-protocol}, not built into the mathematical
-definition of \method. The constrained problem is
-
-\begin{equation}
-\label{eq:constrained-problem}
-\begin{aligned}
-\max_\theta\quad
-&J_N^{\mathrm{rob}}(\theta)\\
-\text{subject to}\quad
-&M(\theta)\ge m_0,\\
-&Q(\theta)\ge q_0,\\
-&\mathbb E_x\!
-\left[
-\mathrm{KL}
-(\pi_\theta(\cdot\mid x)
-\Vert\pi_\mathrm{ref}(\cdot\mid x))
-\right]
-\le\delta.
-\end{aligned}
-\end{equation}
-
-For dual variables \(\lambda_m,\lambda_q\ge0\), define
-
-\begin{equation}
-\label{eq:lagrangian}
-\mathcal J(\theta,\lambda_m,\lambda_q)
-=J_N^{\mathrm{rob}}(\theta)
-+\lambda_m[M(\theta)-m_0]
-+\lambda_q[Q(\theta)-q_0].
-\end{equation}
-
-The primal--dual form is
-\(\max_\theta
-\min_{\lambda_m,\lambda_q\ge0}
-\mathcal J(\theta,\lambda_m,\lambda_q)\).
+The constrained response-level credit and projected controller updates are
+obtained from the definitions in Section~\ref{sec:problem-setup}:
 By linearity and the same conditional-centering argument used in
 \cref{thm:main-gradient}, an unbiased response-level
 Lagrangian credit is

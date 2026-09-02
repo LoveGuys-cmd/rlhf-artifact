@@ -77,19 +77,7 @@ pointwise guarantee that every conditional CDF lies in the ambiguity set.
 The pointwise premise required by the next theorem is therefore stated
 explicitly rather than inferred from a small number of repeated ratings.
 
-\begin{theorem}[Closed-form worst-case distribution]
-\label{thm:robust-inner}
-For each candidate, \(\overline p_j\) in
-\cref{eq:robust-probabilities} is the first-order stochastically smallest
-member of
-\(\mathcal U_{\varepsilon_{\mathrm{cal}}}
-(p_{\omega,j})\).  The product distribution
-\(\bigotimes_{j=1}^{N}\overline p_j\) jointly minimizes the
-expected maximum, and the minimum is
-\cref{eq:robust-max-closed}.
-\end{theorem}
-
-\begin{proof}
+\paragraph{Proof of Theorem~\ref{thm:main-max}.}
 The envelope \(\overline F_j\) is nondecreasing, has boundary
 values zero and one, and therefore defines a valid categorical distribution.
 For every feasible \(q_j\in\mathcal U\),
@@ -106,55 +94,16 @@ coordinatewise nondecreasing in its ratings, so replacing every feasible
 candidate by \(\overline p_j\) cannot increase its expectation.
 The envelope itself is feasible and thus attains the infimum.  Applying
 \cref{prop:threshold-decomposition} gives the stated closed form.
-\end{proof}
 
-\begin{theorem}[Coverage and misspecification bound]
-\label{thm:robust-coverage}
-Let \(F_j^*\) be the true conditional CDF under the target annotation
-protocol.  If
-
-\begin{equation}
-\label{eq:pointwise-coverage}
-F_j^*(t)\le\overline F_j(t)
-\quad
-\text{for all }j=1,\ldots,N
-\text{ and }t=0,1,2,3,
-\end{equation}
-
-then, conditionally on \((x,Y_{1:N})\),
-
-\begin{equation}
-\label{eq:robust-lower-bound}
-\mathbb E_*\left[\max_jR_j\mid x,Y_{1:N}\right]
-\ge h_N^{\mathrm{rob}}(x,Y_{1:N}).
-\end{equation}
-
-Without exact coverage, define
-
-\[
-\xi(x,Y_{1:N})
-:=\max_{j,t}
-\left[F_j^*(t)-\overline F_j(t)\right]_+.
-\]
-
-Then
-
-\begin{equation}
-\label{eq:misspecification-bound}
-\mathbb E_*\left[\max_jR_j\mid x,Y_{1:N}\right]
-\ge
-h_N^{\mathrm{rob}}(x,Y_{1:N})-4N\xi(x,Y_{1:N}).
-\end{equation}
-
-Both inequalities remain valid after expectation over prompts and policy
-outputs.
-\end{theorem}
-
-\begin{proof}
-Under \cref{eq:pointwise-coverage}, each true rating distribution
+\paragraph{Proof of Theorem~\ref{thm:coverage-summary}.}
+Let \(F_j^*\) be the true conditional CDF.  Under the pointwise premise
+\(F_j^*(t)\le\overline F_j(t)\) for every candidate and threshold,
+first-order stochastic dominance gives the lower-bound inequality in
+Theorem~\ref{thm:coverage-summary}.  For the misspecified case, define
+\(\xi=\max_{j,t}[F_j^*(t)-\overline F_j(t)]_+\).  Under
+the same conditioning, each true rating distribution
 first-order stochastically dominates \(\overline p_j\).
-Monotonicity of the maximum proves
-\cref{eq:robust-lower-bound}.  In the misspecified case, for
+Monotonicity of the maximum proves the displayed lower bound.  In the misspecified case, for
 \(a_j,b_j\in[0,1]\),
 
 \[
@@ -168,26 +117,8 @@ Apply this inequality with
 The discrepancy is at most \(N\xi\) per threshold and therefore
 at most \(4N\xi\) after summation.  Taking outer expectations
 preserves the inequalities.
-\end{proof}
 
-\begin{theorem}[Exact marginal credit and policy gradient]
-\label{thm:robust-policy-gradient}
-Under (A1)--(A3), the credit in \cref{eq:robust-credit} equals
-\cref{eq:robust-credit-closed}, and
-
-\begin{equation}
-\label{eq:robust-policy-gradient}
-\nabla_\theta J_N^{\mathrm{rob}}(\theta)
-=\mathbb E\left[
-\sum_{i=1}^{N}
-q_i^{\mathrm{rob}}(x,Y_{1:N})
-\nabla_\theta
-\log\pi_\theta(Y_i\mid x)
-\right].
-\end{equation}
-\end{theorem}
-
-\begin{proof}
+\paragraph{Proof of Theorem~\ref{thm:main-gradient}.}
 For nonnegative integer ratings,
 
 \[
@@ -228,7 +159,6 @@ identity implies that its product with
 has conditional expectation zero.  Applying the likelihood-ratio derivative
 to all \(N\) iid responses and summing the remaining terms proves
 \cref{eq:robust-policy-gradient}.
-\end{proof}
 
 \begin{proposition}[\(N=1\) reduction and complexity]
 \label{cor:n1-reduction}
