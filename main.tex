@@ -197,33 +197,20 @@ and \(\pi_\mathrm{ref}\) is a frozen reference policy.  The subscripts
 \(\omega\) and \(\eta\) distinguish the two evaluators; neither
 belongs to the trainable policy parameter \(\theta\).
 
-\paragraph{Position relative to existing objectives.}
-\label{subsec:scope}
-
-\method{} is a policy-gradient method implemented through PPO; it is not a new
-optimizer or a new reinforcement-learning paradigm.  Inference-aware training,
-pass@\(k\), max@\(k\), and Best-of-\(N\)-aware policy gradients have
-already been developed for scalar or verifiable rewards
+\paragraph{Relation to existing objectives.}
+\method{} builds on PPO and prior inference-aware, pass@\(k\), max@\(k\), and
+Best-of-\(N\) policy-gradient objectives
 \citep{chow2025inference,tang2025inference,walder2025pkpo,
-bagirov2025best,li2026posttraining,poiani2026maxk}.  We therefore do not claim
-the first max@\(k\) objective.
-
-The distinction is the object being maximized. Here the reward model predicts
-a calibrated, bounded ordinal annotation distribution; the finite-\(N\)
-order statistic is computed exactly; calibration uncertainty is propagated
-through a closed-form one-sided ambiguity set; and the upper-tail objective is
-optimized subject to nominal-mean, independent-quality, and KL safeguards.
-We call this combination \textbf{\method}.
-
-This construction is also distinct from distributional RL.  Distributional RL
-learns a distribution of discounted returns through a distributional Bellman
-operator \citep{bellemare2017distributional,dabney2018distributional}.
-\method{} learns no return distribution and performs no distributional Bellman
-backup.  A frozen model predicts one terminal annotation distribution, and the
-policy applies a finite-sample order statistic to iid responses.  The
-ambiguity-set component is related to robust MDPs and distributionally robust
-optimization \citep{iyengar2005robust,nilim2005robust}, but it is defined
-over five terminal rating categories rather than transition kernels.
+bagirov2025best,li2026posttraining,poiani2026maxk}; we do not claim the first
+finite-budget maximum objective.  Our distinction is the combination of a
+frozen bounded ordinal reward distribution, an exact finite-\(N\) order
+statistic, a one-sided calibration ambiguity set, and simultaneous nominal-
+mean, independent-quality, and KL safeguards.  Unlike distributional RL,
+which learns discounted-return distributions with Bellman backups
+\citep{bellemare2017distributional,dabney2018distributional}, \method{} applies
+an order statistic to terminal annotation predictions; unlike robust MDPs
+\citep{iyengar2005robust,nilim2005robust}, its ambiguity set is over five
+terminal rating categories rather than transition kernels.
 
 \subsection{Frozen ordinal reward model}
 \label{subsec:ordinal-rm}
@@ -448,6 +435,10 @@ problem is
 \end{aligned}
 \end{equation}
 
+Here $\delta$ denotes the target population KL budget in
+\cref{eq:constrained-problem}; $\delta_{\mathrm{hard}}$ below is the empirical
+batch threshold used only for rollback.
+
 For dual variables $\lambda_m,\lambda_q\ge0$, define
 
 \begin{equation}
@@ -478,10 +469,18 @@ control; it does not turn rating variance into a bonus.
 
 \begin{theorem}[Exact finite-budget robust maximum]
 \label{thm:main-max}
-Under (A1), the nominal and robust finite-budget objectives are given by
-\cref{eq:ordinal-max-closed} and \cref{eq:robust-max-closed}, respectively.
-In particular, the latter is the exact infimum over the declared product
-ambiguity set, not a Monte Carlo or Gaussian approximation.
+Under (A1), for every fixed $(x,Y_{1:N})$ the worst-case value over the
+declared product ambiguity set is
+\begin{equation}
+\label{eq:theorem-robust-infimum}
+\inf_{q_j\in\mathcal U_{\varepsilon_{\mathrm{cal}}}(p_{\omega,j})}
+\mathbb E_{R_{1:N}\sim\otimes_j q_j}\!\left[\max_j R_j\right]
+=\sum_{t=1}^{4}\left[1-\prod_{j=1}^{N}\overline F_j(t-1)\right]
+=h_N^{\mathrm{rob}}(x,Y_{1:N}).
+\end{equation}
+Thus the envelope is an exact worst-case solution over the full product set,
+not a Monte Carlo or Gaussian approximation; the nominal identity is
+\cref{eq:ordinal-max-closed}.
 \end{theorem}
 
 Let \(\overline R_i\sim\overline p_i\) and
@@ -652,18 +651,18 @@ restored exactly.  Baseline, dual, RMS, and controller states advance only
 after an accepted transition.  This guarantees exact restoration for the
 measured batch; it is not a population-level KL theorem.
 
-\subsection{Optimization procedure}
+\subsection{StableMax-PPO}
 \label{subsec:algorithm}
 \begin{algorithm}[H]
 \caption{StableMax-PPO update}
 \label{alg:stablemax}
-\KwIn{$\mathcal D,\pi_\theta,\pi_{\rm ref},p_\omega,Q_\eta,\varepsilon_{\rm cal},m_0,q_0,N,\delta,\delta_{\rm hard}$}
+\KwIn{$\mathcal D,\pi_\theta,\pi_{\rm ref},p_\omega,Q_\eta,\varepsilon_{\rm cal},m_0,q_0,N,\delta_{\rm hard}$}
 \KwOut{Updated policy parameters $\theta$.}
 Initialize $b_\psi,\lambda_m,\lambda_q,\beta_{\rm KL}$ and lagged scale $s>0$\;
 \For{$k=1,\ldots,T_{\rm pol}$}{
-  Roll out $N$ responses for each of $B$ prompts under $\pi_{\rm old}$\;
-  Compute robust credits by \eqref{eq:robust-credit-closed} and constrained advantages by \eqref{eq:constrained-credit}\;
-  Snapshot $(\theta,\mathsf{Opt})$ and take one clipped-PPO step using \eqref{eq:regularized-ppo}\;
+  Roll out $N$ responses per prompt under $\pi_{\rm old}$\;
+  Compute $\widetilde q_i$ and $A_i$ from the closed-form credits\;
+  Snapshot $(\theta,\mathsf{Opt})$ and perform one clipped-PPO update\;
   \eIf{measured post-update $\widehat{\rm KL}>\delta_{\rm hard}$}{
     Restore $(\theta,\mathsf{Opt})$; leave controller state unchanged\;
   }{
@@ -678,9 +677,9 @@ supplementary protocol.
 \label{sec:theory}
 
 The exact identities in Section~\ref{sec:method} establish the optimization
-target and its score-function estimator.  This section analyzes the two
-remaining control mechanisms: calibration coverage and update rejection.
-Proofs and the misspecification bound are provided in
+target and its score-function estimator.  This section analyzes calibration
+coverage, sensitivity to the ambiguity radius, and update rejection.  Proofs
+and the misspecification bound are provided in
 Appendix~\ref{app:theory}.
 
 \subsection{Calibration coverage}
@@ -702,6 +701,22 @@ Without exact coverage, the gap is at most $4N\xi(x,Y_{1:N})$, where
 $\xi=\max_{j,t}[F_j^*(t)-\overline F_j(t)]_+$.
 \end{theorem}
 
+\subsection{Dependence on the calibration radius}
+\label{subsec:radius-analysis}
+\begin{proposition}[Calibration-radius monotonicity]
+\label{prop:radius-monotonicity}
+For $0\le\varepsilon_1\le\varepsilon_2\le1$ and any policy $\pi_\theta$,
+\begin{equation}
+0\le J_N^{\mathrm{rob}}(\theta;\varepsilon_1)
+-J_N^{\mathrm{rob}}(\theta;\varepsilon_2)
+\le4N(\varepsilon_2-\varepsilon_1).
+\label{eq:radius-bound}
+\end{equation}
+Moreover, $J_N^{\mathrm{rob}}(\theta;0)=J_N^{\mathrm{nom}}(\theta)$.
+Thus $\varepsilon_{\mathrm{cal}}$ is an explicit conservatism control rather
+than an additional reward signal.
+\end{proposition}
+
 \subsection{Rollback invariant}
 \label{subsec:rollback-analysis}
 \begin{proposition}[Rollback correctness]
@@ -721,9 +736,7 @@ none of the three is a claim of universal human-preference superiority.
 \label{sec:experiments}
 
 \subsection{Experimental setup}
-We evaluate four predeclared questions: finite-budget maximum, nominal and
-top-rating behavior, mean/quality/KL safeguards, and independent
-anti-exploitation proxies.  The policy is Qwen2.5-1.5B-Instruct; the frozen
+The policy is Qwen2.5-1.5B-Instruct; the frozen
 ordinal Moment RM and independent Quality RM are Qwen2.5-14B models trained
 with HelpSteer2 repeated helpfulness ratings and preference pairs
 \citep{wang2024helpsteer2}.  All partitions and evaluator versions are
@@ -731,12 +744,12 @@ content-hashed.  Confirmatory seeds are $\{314,2718,1618\}$ with $N=32$;
 the complete optimizer, split, and threshold specification is in
 Appendix~\ref{app:full-experiments}.
 
-\subsection{Evaluation design}
 Primary baselines are Mean-PPO + Q, GRPO + Q, and Scalar Max@32-PPO + Q;
-additional objectives and ablations are listed in Appendix~\ref{app:full-experiments}.
-We report robust and nominal maxima, top-rating probability, mean/variance,
-independent quality, held-out KL, constraint residuals, and rollback counts.
-Uncertainty uses hierarchical seed-and-prompt resampling; all gates are retained.
+additional objectives and ablations are listed in
+Appendix~\ref{app:full-experiments}.  We report robust and nominal maxima,
+top-rating probability, mean and independent quality, held-out KL, and
+rollback counts.  Uncertainty uses hierarchical seed-and-prompt resampling;
+the complete predeclared gate ledger is reported in the appendix.
 
 \subsection{Main results}
 StableMax-PPO reaches a robust expected maximum of $3.458$ while reducing
@@ -773,12 +786,27 @@ aggregates; open markers are individual seeds and bars are 95\% intervals.}
 
 Figure~\ref{fig:max-kl-pareto} makes the trade-off explicit: \method{} has lower held-out KL than Mean-PPO and GRPO while retaining a competitive robust maximum, whereas max-oriented comparators remain higher on that endpoint. Rollback frequency is an optimization diagnostic, not a population guarantee; the complete gate ledger and statistical tests are in Appendix~\ref{app:full-experiments}.
 
+\subsection{Ablation and stability analysis}
+The ablations move along the same frontier rather than identifying a component
+that improves every endpoint.  Removing the mean floor increases robust max
+to $3.508$ but also raises held-out KL to $0.048$; removing the independent
+quality floor yields $3.467$ at KL $0.048$.  The nominal ordinal variant,
+which removes calibration robustification, yields $3.421$ at KL $0.028$.
+These results support interpreting calibration and quality constraints as
+controls on the operating point, not as uniformly beneficial reward terms.
+Under the shared rollback threshold, \method{} rejects $31.0\%$ of tentative
+updates, close to Scalar max-PPO ($31.7\%$) and below Mean-PPO ($58.6\%$) and
+GRPO ($82.3\%$).  The per-seed values and remaining ablations are in
+Appendix~\ref{app:full-experiments}.
+
 \section{Limitations}
 \label{sec:limitations}
 The endpoint is induced by frozen evaluators and no fresh human labels are
 collected for generated outputs.  Model proxies may disagree with humans, the
 1.5B/14B capacity gap may induce evaluator shift, and three seeds do not
-establish scale or domain generalization.  Full diagnostics are in
+establish scale or domain generalization.  The exact product-form objective
+also assumes conditionally independent rating outcomes across sampled
+responses and does not model correlated annotation or evaluator errors.  Full diagnostics are in
 Appendix~\ref{app:full-experiments} and the supplementary artifact.
 
 \paragraph{Reproducibility statement.} The supplementary artifact contains the

@@ -118,6 +118,26 @@ The discrepancy is at most \(N\xi\) per threshold and therefore
 at most \(4N\xi\) after summation.  Taking outer expectations
 preserves the inequalities.
 
+\paragraph{Proof of Proposition~\ref{prop:radius-monotonicity}.}
+Fix a candidate group and threshold \(t\), and write
+\(a_j(\varepsilon)=\min\{1,F_{\omega,j}(t-1)+\varepsilon\}\).  For
+\(\varepsilon_1\le\varepsilon_2\),
+\[
+0\le a_j(\varepsilon_2)-a_j(\varepsilon_1)
+\le \varepsilon_2-\varepsilon_1.
+\]
+The telescoping product identity and \(a_j(\varepsilon)\in[0,1]\) then give
+\[
+0\le \prod_j a_j(\varepsilon_2)-\prod_j a_j(\varepsilon_1)
+\le \sum_j\bigl(a_j(\varepsilon_2)-a_j(\varepsilon_1)\bigr)
+\le N(\varepsilon_2-\varepsilon_1).
+\]
+Substituting this bound into the four-term tail-sum expression for
+\(h_N^{\mathrm{rob}}\), and then taking the expectation over prompts and
+responses, proves \cref{eq:radius-bound}.  At \(\varepsilon=0\), the envelope
+equals the nominal CDF, so the exact infimum in
+Theorem~\ref{thm:main-max} equals \(J_N^{\mathrm{nom}}(\theta)\).
+
 \paragraph{Proof of Theorem~\ref{thm:main-gradient}.}
 For nonnegative integer ratings,
 
