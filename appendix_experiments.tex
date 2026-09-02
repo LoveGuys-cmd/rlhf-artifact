@@ -182,6 +182,18 @@ response.  A deployment-style
 \(\arg\max_i\mu_\omega(x,Y_i)\) response is reported
 only as a secondary selector diagnostic.
 
+For completeness, the top-category diagnostic used in the cached evaluation
+is
+\begin{equation}
+\label{eq:any-four}
+U_N^{\mathrm{nom}}(\theta)
+:=\mathbb E_{x,Y_{1:N}}\!\left[
+1-\prod_{j=1}^{N}(1-p_{\omega,4}(x,Y_j))\right].
+\end{equation}
+It is the frozen-model probability that at least one candidate receives rating
+four.  It is not a Gaussian tail approximation and is not the primary
+estimand; the complete ordinal maximum remains the reported objective.
+
 \subsection{Statistical analysis and success criteria}
 \label{subsec:statistical-analysis}
 

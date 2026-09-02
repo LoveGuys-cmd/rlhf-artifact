@@ -133,7 +133,12 @@ superiority or direct human-preference improvement.
 \section{Problem Setup}
 \label{sec:problem-setup}
 
-This paper studies terminal-reward language-model reinforcement learning with a fixed best-of-\(N\) response budget.  The objective is the exact upper-tail value induced by a frozen calibrated ordinal reward model, together with predeclared robustness, mean-quality, independent-quality, and KL safeguards.  The method does not rely on a Gaussian reward assumption and does not claim direct human-preference superiority before the confirmatory evaluation is complete.  A prompt \(x\sim\mathcal D\) and a response \(Y=(a_1,\ldots,a_H)\) induce states \(s_h=(x,a_{<h})\) with sequence probability
+We study terminal-reward language-model reinforcement learning with a fixed
+best-of-\(N\) response budget.  The target is an exact upper-tail value from a
+frozen ordinal reward model, with predeclared quality, calibration, and KL
+safeguards.  A prompt \(x\sim\mathcal D\) and response
+\(Y=(a_1,\ldots,a_H)\) induce states \(s_h=(x,a_{<h})\) with sequence
+probability
 
 \begin{equation}
 \label{eq:sequence-policy}
@@ -142,16 +147,9 @@ This paper studies terminal-reward language-model reinforcement learning with a 
 \pi_\theta(a_h\mid s_h).
 \end{equation}
 
-We use $\theta$ for the trainable policy, $\omega$ for the frozen ordinal
-reward model, and $\eta$ for the frozen independent Quality RM; the reference
-policy $\pi_{\rm ref}$ is fixed throughout.
-
-The response receives one terminal evaluation rather than an artificial sum
-of token-level rewards.  This is the standard response-level RLHF setting
-\citep{christiano2017deep,stiennon2020learning,ouyang2022training}.  Our
-target is not the expected rating of one response.  It is the expected best
-rating attainable from a fixed sampling budget, while preserving nominal
-quality and limiting policy drift.
+The response receives one terminal evaluation rather than an artificial sum of
+token rewards, as in response-level RLHF
+\citep{christiano2017deep,stiennon2020learning,ouyang2022training}.
 
 \subsection{RLHF setting and notation}
 \label{subsec:problem-notation}
@@ -214,25 +212,10 @@ r\in\mathcal R,
 \sum_{r=0}^{4}p_{\omega,r}(x,y)=1.
 \end{equation}
 
-The model uses an ordinal-probit observation head.  It emits a latent location
-\(m_\omega(x,y)\) and a positive latent scale
-\(s_\omega(x,y)\).  Given frozen cutpoints
-\(c_1<\cdots<c_4\), the category probabilities are
-
-\begin{align}
-p_{\omega,0}
-&=\Phi\!\left(\frac{c_1-m_\omega}{s_\omega}\right),\\
-p_{\omega,r}
-&=\Phi\!\left(\frac{c_{r+1}-m_\omega}{s_\omega}\right)
--\Phi\!\left(\frac{c_r-m_\omega}{s_\omega}\right),
-\quad r=1,2,3,\\
-p_{\omega,4}
-&=1-\Phi\!\left(\frac{c_4-m_\omega}{s_\omega}\right).
-\end{align}
-
-This is an ordinal observation model, not an unbounded Gaussian reward
-\citep{mccullagh1980regression}.  Its observable moments are induced by
-the same five probabilities:
+The Moment RM uses an ordinal-probit observation head (full parameterization in
+Appendix~\ref{app:theory}), not an unbounded Gaussian reward
+\citep{mccullagh1980regression}.  Its observable moments are induced by the
+same five probabilities:
 
 \begin{equation}
 \label{eq:ordinal-moments}
@@ -244,19 +227,13 @@ the same five probabilities:
 (r-\mu_\omega(x,y))^2p_{\omega,r}(x,y).
 \end{equation}
 
-Repeated-rating likelihood and disagreement supervise the conditional scale.
-Accordingly, \(\sigma_\omega^2\) represents conditional variation of
-ratings under the stated annotation protocol.  It is not epistemic
-uncertainty, distance from a preference boundary, or a stand-alone bonus
-\citep{kendall2017uncertainties,lou2024uncertainty,sun2025purm}.
-Proper scoring and calibration are required because the full distribution,
-not only its mean, enters the policy objective
-\citep{gneiting2007strictly,guo2017calibration}.
-
-All objectives below are conditional on this frozen reward model.
-Consequently, \(R\) denotes a model-implied annotation draw, not an
-observed label on a newly generated response and not an objective measure of
-human utility.
+Repeated ratings supervise the conditional scale, so \(\sigma_\omega^2\) is a
+model-based signal of disagreement under that annotation protocol, not
+epistemic uncertainty or a reward bonus
+\citep{kendall2017uncertainties,lou2024uncertainty,sun2025purm}.  Proper
+scoring and calibration matter because the full distribution enters the
+objective \citep{gneiting2007strictly,guo2017calibration}; all objectives below
+remain conditional on this frozen model.
 
 \subsection{Finite-budget Best-of-\texorpdfstring{\(N\)}{N} objective}
 \label{subsec:ordinal-objective}
@@ -303,33 +280,17 @@ Equation \cref{eq:ordinal-max-closed} is exact.  It introduces neither
 sampled rating noise nor a Gaussian approximation.  The upper endpoint four
 is part of the target annotation protocol.
 
-For interpretability, we additionally define the top-category component
-
-\begin{equation}
-\label{eq:any-four}
-U_N^{\mathrm{nom}}(\theta)
-:=\mathbb E_{x,Y_{1:N}}
-\left[
-1-\prod_{j=1}^{N}
-\bigl(1-p_{\omega,4}(x,Y_j)\bigr)
-\right].
-\end{equation}
-
-This is exactly the probability, under the frozen ordinal RM, that at least
-one of the \(N\) candidates receives rating four.  It is not equal to the
-Gaussian tail quantity \(1-\Phi(\kappa_N)\).  Because it retains only
-the highest threshold, \(U_N^{\mathrm{nom}}\) is a diagnostic and an
-ablation objective rather than the primary estimand.
+The top-rating probability is retained as a secondary diagnostic and is given
+in Appendix~\ref{app:full-experiments}; the primary estimand is the complete
+ordinal maximum in \cref{eq:ordinal-max-closed}.
 
 \subsection{Calibration uncertainty and robust objective}
 \label{subsec:robust-objective}
 
-Finite-$N$ maxima can amplify small upper-tail calibration errors.  We
-therefore construct a one-sided ambiguity radius using a validation split that
-is frozen before policy optimization.  Let
-\(g=1,\ldots,G_{\mathrm{cal}}\) index independent prompt clusters,
-and let \(\mathcal A_g\) contain the annotated response events for prompt
-$g$.  For threshold $t\in\{0,1,2,3\}$, define
+Finite-$N$ maxima can amplify upper-tail calibration errors.  We therefore
+freeze a one-sided ambiguity radius on independent validation prompt clusters
+before policy optimization.  Let \(\mathcal A_g\) contain the annotated
+events for cluster \(g\); for \(t\in\{0,1,2,3\}\), define
 
 \begin{equation}
 \label{eq:cluster-residual}
@@ -338,8 +299,7 @@ D_{g,t}=\frac{1}{|\mathcal A_g|}
 \left[\mathbf 1\{R_{g,a}\le t\}-F_{\omega,g,a}(t)\right].
 \end{equation}
 
-Responses and repeated labels within one prompt are aggregated before
-concentration.  Let
+Aggregating within clusters before concentration gives
 
 \begin{align}
 \widehat d_t
@@ -350,8 +310,8 @@ concentration.  Let
 \label{eq:epsilon-calibration}
 \end{align}
 
-Here $\alpha_{\mathrm{cal}}$ is the predeclared one-sided calibration error
-probability.  For any nominal probability vector $p\in\Delta^4$, define
+Here $\alpha_{\mathrm{cal}}$ is the predeclared one-sided error probability.
+For any nominal vector $p\in\Delta^4$, define
 
 \begin{equation}
 \label{eq:ambiguity-set}
@@ -359,8 +319,8 @@ probability.  For any nominal probability vector $p\in\Delta^4$, define
 F_q(t)\le\min\{1,F_p(t)+\varepsilon\},\quad t=0,1,2,3\right\}.
 \end{equation}
 
-This set permits more probability mass on low ratings in the harmful
-direction for maximum optimization; it does not reward variance by itself.
+The envelope permits harmful low-rating mass for maximum optimization; it does
+not reward variance by itself.
 For candidate $j$, define
 
 \begin{align}
@@ -441,19 +401,17 @@ is a safeguard against evaluator-specific overoptimization, not a proof that
 reward hacking is impossible \citep{gao2023scaling,achiam2017constrained}.
 
 \paragraph{Relation to existing objectives.}
-\method{} builds on PPO and prior inference-aware, pass@\(k\), max@\(k\), and
+\method{} builds on PPO and inference-aware, pass@\(k\), max@\(k\), and
 Best-of-\(N\) policy-gradient objectives
 \citep{chow2025inference,tang2025inference,walder2025pkpo,
 bagirov2025best,li2026posttraining,poiani2026maxk}; we do not claim the first
-finite-budget maximum objective.  Our distinction is the combination of a
-frozen bounded ordinal reward distribution, an exact finite-\(N\) order
-statistic, a one-sided calibration ambiguity set, and simultaneous nominal-
-mean, independent-quality, and KL safeguards.  Unlike distributional RL,
-which learns discounted-return distributions with Bellman backups
-\citep{bellemare2017distributional,dabney2018distributional}, \method{} applies
-an order statistic to terminal annotation predictions; unlike robust MDPs
-\citep{iyengar2005robust,nilim2005robust}, its ambiguity set is over five
-terminal rating categories rather than transition kernels.
+finite-budget maximum objective.  Our contribution is their combination with
+a frozen bounded ordinal distribution, exact finite-\(N\) order statistics,
+one-sided calibration, and mean, independent-quality, and KL safeguards.
+Unlike distributional RL or robust MDPs
+\citep{bellemare2017distributional,dabney2018distributional,iyengar2005robust,nilim2005robust},
+the ambiguity set is over terminal rating categories rather than returns or
+transition kernels.
 
 \section{Method}
 \label{sec:method}

@@ -2,6 +2,34 @@
 \section{Detailed theoretical analysis}
 \label{app:theory}
 
+\subsection{Ordinal-probit parameterization}
+\label{app:ordinal-probit}
+The frozen Moment RM emits a latent location $m_\omega(x,y)$ and positive
+scale $s_\omega(x,y)$.  With frozen cutpoints
+$c_1<\cdots<c_4$, its five-category probabilities are
+\begin{align}
+p_{\omega,0}
+&=\Phi\!\left(\frac{c_1-m_\omega}{s_\omega}\right),\\
+p_{\omega,r}
+&=\Phi\!\left(\frac{c_{r+1}-m_\omega}{s_\omega}\right)
+-\Phi\!\left(\frac{c_r-m_\omega}{s_\omega}\right),
+\quad r=1,2,3,\\
+p_{\omega,4}
+&=1-\Phi\!\left(\frac{c_4-m_\omega}{s_\omega}\right).
+\end{align}
+The moments used by the policy are
+\[
+\mu_\omega=\sum_{r=0}^4 r p_{\omega,r},
+\qquad
+\sigma_\omega^2=\sum_{r=0}^4(r-\mu_\omega)^2p_{\omega,r}.
+\]
+Repeated-rating likelihood and disagreement supervise the conditional scale;
+therefore this variance is a model-based signal of annotation disagreement,
+not epistemic uncertainty or a stand-alone reward.  Proper scoring and
+calibration are required because the complete categorical distribution enters
+the finite-budget objective \citep{mccullagh1980regression,kendall2017uncertainties,
+lou2024uncertainty,sun2025purm,gneiting2007strictly,guo2017calibration}.
+
 \begin{proposition}[Finite-support threshold decomposition]
 \label{prop:threshold-decomposition}
 For conditionally independent ratings supported on
