@@ -133,11 +133,7 @@ superiority or direct human-preference improvement.
 \section{Problem Setup}
 \label{sec:problem-setup}
 
-This paper studies terminal-reward language-model reinforcement learning with a fixed best-of-\(N\) response budget.  The objective is the exact upper-tail value induced by a frozen calibrated ordinal reward model, together with predeclared robustness, mean-quality, independent-quality, and KL safeguards.  The method does not rely on a Gaussian reward assumption and does not claim direct human-preference superiority before the confirmatory evaluation is complete.  A prompt \(x\sim\mathcal D\) and a response \(Y=(a_1,\ldots,a_H)\) induce states \(s_h=(x,a_{<h})\), with sequence probability
-
-We use $\theta$ for the trainable policy, $\omega$ for the frozen ordinal
-reward model, and $\eta$ for the frozen independent Quality RM; the reference
-policy $\pi_{\rm ref}$ is fixed throughout.
+This paper studies terminal-reward language-model reinforcement learning with a fixed best-of-\(N\) response budget.  The objective is the exact upper-tail value induced by a frozen calibrated ordinal reward model, together with predeclared robustness, mean-quality, independent-quality, and KL safeguards.  The method does not rely on a Gaussian reward assumption and does not claim direct human-preference superiority before the confirmatory evaluation is complete.  A prompt \(x\sim\mathcal D\) and a response \(Y=(a_1,\ldots,a_H)\) induce states \(s_h=(x,a_{<h})\) with sequence probability
 
 \begin{equation}
 \label{eq:sequence-policy}
@@ -145,6 +141,10 @@ policy $\pi_{\rm ref}$ is fixed throughout.
 =\prod_{h=1}^{H}
 \pi_\theta(a_h\mid s_h).
 \end{equation}
+
+We use $\theta$ for the trainable policy, $\omega$ for the frozen ordinal
+reward model, and $\eta$ for the frozen independent Quality RM; the reference
+policy $\pi_{\rm ref}$ is fixed throughout.
 
 The response receives one terminal evaluation rather than an artificial sum
 of token-level rewards.  This is the standard response-level RLHF setting
@@ -473,6 +473,9 @@ independent quality. Thus the method is a controlled operating point on a
 max--stability frontier. The calibration correction is one component of this
 control; it does not turn rating variance into a bonus.
 
+\subsection{Exact robust maximum and marginal credit}
+\label{subsec:exact-credit}
+
 \begin{theorem}[Exact finite-budget robust maximum]
 \label{thm:main-max}
 Under (A1), the nominal and robust finite-budget objectives are given by
@@ -480,9 +483,6 @@ Under (A1), the nominal and robust finite-budget objectives are given by
 In particular, the latter is the exact infimum over the declared product
 ambiguity set, not a Monte Carlo or Gaussian approximation.
 \end{theorem}
-
-\subsection{Exact marginal credit}
-\label{subsec:robust-credit}
 
 Let \(\overline R_i\sim\overline p_i\) and
 \(\overline M_{-i}
@@ -721,22 +721,30 @@ none of the three is a claim of universal human-preference superiority.
 \label{sec:experiments}
 
 \subsection{Experimental setup}
-We evaluate four predeclared questions: whether calibrated extreme-value credit improves the held-out robust $\mathbb{E}[\max_{j\leq 32}R_j]$ endpoint; whether any change persists for the nominal ordinal maximum and top-rating probability; whether mean reward, independent quality, and reference-policy KL satisfy their floors; and whether independent generated-output proxies reveal target-reward exploitation. The protocol uses Qwen2.5-1.5B-Instruct as policy, a frozen Qwen2.5-14B ordinal Moment RM trained from HelpSteer2 repeated helpfulness ratings and preference pairs \citep{wang2024helpsteer2}, and an independently trained Qwen2.5-14B Quality RM. All data partitions and evaluator versions are content-hashed.
-
-Each confirmatory method uses seeds $\{314,2718,1618\}$, 512 test prompts per seed, $N=32$, 300 policy steps, two prompts per step, learning rate $2\times10^{-5}$, one PPO epoch, clip $0.2$, LoRA rank 8, temperature 1, top-$p=1$, maximum prompt length 384 and response length 64. The target KL is 0.02 and the hard rollback level is 0.04. Development seed 42 is excluded from all intervals. Calibration, training, held-out KL, and generated-output evaluation use disjoint prompt partitions.
+We evaluate four predeclared questions: finite-budget maximum, nominal and
+top-rating behavior, mean/quality/KL safeguards, and independent
+anti-exploitation proxies.  The policy is Qwen2.5-1.5B-Instruct; the frozen
+ordinal Moment RM and independent Quality RM are Qwen2.5-14B models trained
+with HelpSteer2 repeated helpfulness ratings and preference pairs
+\citep{wang2024helpsteer2}.  All partitions and evaluator versions are
+content-hashed.  Confirmatory seeds are $\{314,2718,1618\}$ with $N=32$;
+the complete optimizer, split, and threshold specification is in
+Appendix~\ref{app:full-experiments}.
 
 \subsection{Evaluation design}
-The primary baselines are Mean-PPO + Q, GRPO + Q, and Scalar Max@32-PPO + Q. Additional comparisons are Entropic-PPO, Nominal Ordinal EV-PPO, Gaussian EV-PPO, Top-4 PPO, and ablations removing the mean or Quality RM floor. An evaluation-only Best-of-32 row samples and ranks 32 base-policy responses and is not a compute-matched training baseline. We report robust and nominal ordinal maxima, probability of at least one rating-four response, candidate mean/variance, independent quality, response length, full-vocabulary held-out KL, constraint residuals, accepted updates, and rollback counts.
-
-Aggregate uncertainty uses hierarchical seed-and-prompt resampling; all seeds
-and predeclared gates are retained. Generated-output comparisons are model-based
-proxies, while existing human-labeled pairs are used only in a static lockbox.
+Primary baselines are Mean-PPO + Q, GRPO + Q, and Scalar Max@32-PPO + Q;
+additional objectives and ablations are listed in Appendix~\ref{app:full-experiments}.
+We report robust and nominal maxima, top-rating probability, mean/variance,
+independent quality, held-out KL, constraint residuals, and rollback counts.
+Uncertainty uses hierarchical seed-and-prompt resampling; all gates are retained.
 
 \subsection{Main results}
 StableMax-PPO reaches a robust expected maximum of $3.458$ while reducing
-held-out KL to $0.034$, compared with $3.424$ and $0.070$ for Mean-PPO.
-GRPO and Scalar max-PPO attain higher robust maxima, so these results identify
-a lower-drift operating point rather than universal dominance.
+held-out KL to $0.034$, compared with $3.424$ and $0.070$ for Mean-PPO.  The
+same controller rejects 31.0\% of tentative updates, versus 58.6\% for
+Mean-PPO and 82.3\% for GRPO.  GRPO and Scalar max-PPO attain higher robust
+maxima, so the evidence identifies a lower-drift operating point rather than
+universal dominance.
 
 \begin{table}[t]
 \caption{Primary aggregate results (three seeds, 512 prompts per seed).}
@@ -757,7 +765,7 @@ Best-of-32 (base) & 3.086 & [3.045, 3.125] & -- & --\\
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.70\linewidth]{figures/max_kl_pareto.pdf}
+\includegraphics[width=0.60\linewidth]{figures/max_kl_pareto.pdf}
 \caption{Robust maximum versus held-out KL. Filled markers are three-seed
 aggregates; open markers are individual seeds and bars are 95\% intervals.}
 \label{fig:max-kl-pareto}
@@ -767,26 +775,34 @@ Figure~\ref{fig:max-kl-pareto} makes the trade-off explicit: \method{} has lower
 
 \section{Limitations}
 \label{sec:limitations}
-The endpoint is induced by frozen evaluators, and no fresh human labels are
-collected for generated outputs. Model proxies can disagree with human
-judgments; the 1.5B policy versus 14B evaluator capacity gap may induce
-evaluator shift, and three seeds do not establish generalization to other
-scales or domains. Full diagnostics and verification records are in
+The endpoint is induced by frozen evaluators and no fresh human labels are
+collected for generated outputs.  Model proxies may disagree with humans, the
+1.5B/14B capacity gap may induce evaluator shift, and three seeds do not
+establish scale or domain generalization.  Full diagnostics are in
 Appendix~\ref{app:full-experiments} and the supplementary artifact.
 
-\paragraph{Reproducibility statement.} The supplementary artifact provides the
-source, official ICLR style files, bibliography, protocol metadata, result
-tables, verification JSON, and build commands. An anonymous code repository is
-available at \url{https://github.com/LoveGuys-cmd/rlhf-artifact}; model weights,
-credentials, and private data are excluded.
+\paragraph{Reproducibility statement.} The supplementary artifact contains the
+source, official ICLR style files, protocol, result tables, verification JSON,
+build commands, and an anonymous repository at
+\url{https://github.com/LoveGuys-cmd/rlhf-artifact}.  The main paper specifies
+the objective, algorithm, seeds, metrics, and aggregate results; the appendices
+give the proofs and complete experimental protocol.  We exclude model weights,
+credentials, private data, and other files that cannot be redistributed.
 
-\paragraph{AI use statement.} AI tools assisted with language editing, LaTeX
-troubleshooting, and software debugging; the authors reviewed all derivations,
-claims, code, and submission materials and take responsibility for accuracy.
+\paragraph{AI use statement.} Generative AI tools assisted with paper
+organization, methodological exposition, language editing, LaTeX and figure
+formatting, and debugging of analysis code.  The authors independently checked
+all mathematical claims and proofs, verified the implementation and numerical
+values against the frozen result files, and reviewed every AI-assisted change.
+No AI system generated experimental data or replaced author verification; the
+authors take responsibility for the final text, claims, and artifact.
 
 \paragraph{Ethics statement.} The study uses model-generated text and existing
-preference data, involves no human-subject intervention or personal-data
-release, and discloses proxy limitations and possible reward-model exploitation.
+preference data.  It collects no new human-subject data and releases no
+personal information.  Model-based preference proxies are reported as proxies,
+not as human judgments of newly generated outputs; possible reward-model
+exploitation and evaluator shift are disclosed in Section~\ref{sec:limitations}
+and Appendix~\ref{app:full-experiments}.
 \label{main-text-end}
 \bibliographystyle{iclr2027_conference}
 \bibliography{references}
@@ -798,6 +814,7 @@ release, and discloses proxy limitations and possible reward-model exploitation.
 \makeatother
 \input{appendix_theory.tex}
 \input{appendix_experiments.tex}
+\input{appendix_algorithm.tex}
 \section{Artifact and verification records}
 The machine-readable supplementary files include the aggregate JSON, complete per-seed CSV tables, terminal verification records, and SHA-256 manifest.
 \end{document}
