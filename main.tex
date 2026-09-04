@@ -561,6 +561,44 @@ No calibration correction & 3.421 & 0.028 & 121 (13.4\%)\\
 \end{tabular}
 \end{table}
 
+\subsection{Independent evaluator diagnostics}
+\label{subsec:independent-evaluators}
+To test whether improvements under the target Moment RM transfer to an
+independent evaluation regime, we compare prompt-matched outputs from
+\method{} and Mean-PPO with two frozen evaluators.  For each of the three
+seeds, we form up to 512 pairs of held-out groups, select one response per
+policy by $\arg\max_i\mu_\omega(x,Y_i)$, and score the selected responses with a
+Qwen2.5-14B judge and \texttt{RLHFlow/ArmoRM-Llama3-8B-v0.1}.  The judge
+order is randomized and checked in reverse; each evaluator is calibrated on a
+frozen RewardBench split before it is used.  The reported preference is
+tie-adjusted ($0.5$ is parity), with the interval obtained by the same
+three-seed hierarchical bootstrap used for the primary endpoint.
+
+\begin{table}[H]
+\caption{Independent generated-output proxies against Mean-PPO.  A gate is
+predeclared at preference mean $\ge 0.50$ and 95\% lower endpoint $\ge 0.45$.}
+\label{tab:proxy-diagnostics}
+\centering\scriptsize
+\begin{tabular}{lccc}
+\toprule
+Evaluator & Preference & 95\% CI & Gate\\
+\midrule
+Qwen2.5-14B judge & 0.494 & [0.478, 0.510] & Fail\\
+ArmoRM-Llama3-8B-v0.1 & 0.502 & [0.458, 0.544] & Pass\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The ArmoRM proxy is consistent with parity, whereas the Qwen proxy falls just
+below its frozen mean threshold; consequently the combined model-based
+anti-exploitation battery is not passed.  In parallel, the complete 32-response
+groups are compared on robust and nominal maxima, top-rating probability,
+length, repetition, diversity, refusal behavior, and upper-tail strata.
+These checks make the proxy comparison a secondary transfer diagnostic rather
+than a replacement for the declared Best-of-32 endpoint.  Existing-label
+RewardBench and Skywork lockboxes are reported only as preference-retention
+diagnostics; no newly generated response receives a human label in this study.
+
 \section{Limitations}
 \label{sec:limitations}
 The endpoint is induced by frozen evaluators and no fresh human labels are

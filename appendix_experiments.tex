@@ -232,14 +232,31 @@ under the target RM alone is insufficient.
 \label{subsec:anti-exploitation}
 
 Newly generated outputs are compared with Mean-PPO outputs by two frozen
-evaluators: a Qwen2.5-14B judge and ArmoRM
-\citep{zheng2023judging,wang2024interpretable}.  Each evaluator must first
-pass its own frozen RewardBench calibration gate.  Their pairwise judgments
-are model-based proxies, not human labels.  Reward-hacking diagnostics compare
-target-RM improvements with proxy preference, response length, repetition,
-diversity, refusal behavior, and upper-tail strata.  Target-RM improvement
-accompanied by proxy degradation is reported as evidence consistent with
-reward-model exploitation.
+evaluators: the Qwen2.5-14B-Instruct judge and
+\texttt{RLHFlow/ArmoRM-Llama3-8B-v0.1}
+\citep{zheng2023judging,wang2024interpretable}.  For each seed, the diagnostic
+aligns up to 512 held-out prompt groups, retains the response selected by
+$\arg\max_i\mu_\omega(x,Y_i)$ from each 32-response group, and evaluates the
+matched pair.  Qwen judgments use randomized presentation order and a reverse
+order check; ArmoRM supplies an independent pointwise score.  Each evaluator
+must first pass its frozen RewardBench calibration gate (between 512 and 1,024
+calibration pairs, with the frozen split and hashes recorded by the protocol).
+Pairwise judgments are model-based proxies, not human labels.  The complete
+group-level diagnostic is run separately on all 32 candidates and reports
+robust/nominal maximum, probability of any rating-4 response, and the paired
+group delta; selected-response diagnostics additionally report length,
+character count, repeated-trigram rate, unique-word ratio, refusal behavior,
+and upper-tail strata.
+
+The aggregate tie-adjusted preference scores against Mean-PPO are 0.494
+([0.478, 0.510]) for Qwen and 0.502 ([0.458, 0.544]) for ArmoRM, where the
+intervals are three-seed hierarchical-bootstrap 95\% intervals.  The frozen
+gate requires a mean at least 0.50 and a lower endpoint at least 0.45; thus
+ArmoRM passes and Qwen fails by the predeclared mean threshold.  The combined
+model-based anti-exploitation battery is consequently false.  A target-RM
+increase accompanied by proxy degradation is reported as evidence consistent
+with reward-model exploitation, while a passing proxy can only support
+``no evidence under the measured evaluators,'' not its absence.
 
 RewardBench and Skywork chosen--rejected lockboxes contain previously collected
 human labels.  For each policy, length-normalized chosen--rejected policy
