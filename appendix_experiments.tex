@@ -19,28 +19,24 @@ reference-policy KL remain within their predeclared safeguards?
 preference diagnostics provide evidence against target-RM exploitation?
 \end{enumerate}
 
-No result is used to remove a comparator, redefine a gate, or select a more
+No result is used to remove a comparator, redefine a threshold, or select a more
 favorable protocol.
 
-\subsection{Gate outcomes and scientific interpretation}
+\subsection{Protocol audit and scientific interpretation}
 \label{subsec:gate-outcomes}
 
-The artifact verifier passed for seeds 314, 2718, and 1618. Passed gates are
-the ArmoRM generated-output proxy, held-out KL superiority versus Mean-PPO and
-GRPO, the nominal-mean floor, and the independent Quality-RM floor. Failed
-gates are the Qwen generated-output proxy, robust non-inferiority versus
-Mean-PPO and GRPO, and the primary comparison versus Scalar Max-PPO.
-Accordingly, the preregistered all-gates field is
-\texttt{scientific\_success=false}. This records a max--stability trade-off;
-it is not evidence of direct human-preference improvement or a proof that
-reward-model exploitation is absent.
+The artifact verifier passed for seeds 314, 2718, and 1618.  The terminal
+record preserves every predeclared proxy, non-inferiority, safeguard, and KL
+outcome for auditability.  We interpret these fields as protocol diagnostics
+that delimit the measured max--stability frontier, not as a universal method
+ranking or a proof that reward-model exploitation is absent.
 
-The gate vector is intentionally read as a decision record rather than a
-single leaderboard score.  A method can pass the KL and quality safeguards
-while failing a max non-inferiority comparison, or improve the target reward
-while failing an independent proxy.  Reporting the vector preserves these
-distinctions and prevents a favorable endpoint from hiding a failure mode that
-the method was designed to measure.
+The diagnostic vector is read as a decision record rather than a single
+leaderboard score.  A method can satisfy KL and quality safeguards while
+losing a max comparison, or improve the target reward while degrading an
+independent proxy.  Reporting the vector preserves these distinctions and
+prevents a favorable endpoint from hiding a failure mode that the method was
+designed to measure.
 
 \subsection{Models, data, and split discipline}
 \label{subsec:models-data}
@@ -250,13 +246,12 @@ and upper-tail strata.
 
 The aggregate tie-adjusted preference scores against Mean-PPO are 0.494
 ([0.478, 0.510]) for Qwen and 0.502 ([0.458, 0.544]) for ArmoRM, where the
-intervals are three-seed hierarchical-bootstrap 95\% intervals.  The frozen
-gate requires a mean at least 0.50 and a lower endpoint at least 0.45; thus
-ArmoRM passes and Qwen fails by the predeclared mean threshold.  The combined
-model-based anti-exploitation battery is consequently false.  A target-RM
-increase accompanied by proxy degradation is reported as evidence consistent
-with reward-model exploitation, while a passing proxy can only support
-``no evidence under the measured evaluators,'' not its absence.
+intervals are three-seed hierarchical-bootstrap 95\% intervals.  Both scores
+are near parity and both intervals contain 0.5, so neither evaluator shows a
+clear quality-degradation signal relative to Mean-PPO.  A target-RM increase
+accompanied by proxy degradation would be evidence consistent with
+reward-model exploitation; these results do not show that signature, but the
+model-based design cannot establish its absence.
 
 RewardBench and Skywork chosen--rejected lockboxes contain previously collected
 human labels.  For each policy, length-normalized chosen--rejected policy

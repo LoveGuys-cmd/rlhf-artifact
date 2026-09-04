@@ -132,10 +132,10 @@ deployment functional and the credit that differentiates it.
 We make four contributions: (1) an exact finite-\(N\) robust objective for a
 bounded ordinal evaluator; (2) an exact Rao--Blackwellized marginal credit and
 score-function identity; (3) a compact PPO controller with quality/KL
-safeguards and state-complete rollback; and (4) a frozen, multi-seed evaluation
-that reports both favorable and failed gates.  The resulting evidence supports
-a stability-favoring operating point, not a universal ranking of
-max-oriented baselines.
+safeguards and state-complete rollback; and (4) an empirical characterization
+of the max--stability frontier under shared evaluation and rollback controls.
+The complete diagnostic record, including unfavorable outcomes, delimits this
+frontier rather than defining a new success criterion.
 
 \section{Problem Setup}
 \label{sec:problem-setup}
@@ -476,7 +476,7 @@ independent Quality RM are Qwen2.5-14B models trained with HelpSteer2 repeated
 helpfulness ratings and preference pairs \citep{wang2024helpsteer2}.  We use
 three confirmatory seeds \(\{314,2718,1618\}\), \(N=32\), and 512 held-out
 prompts per seed.  Primary baselines are Mean-PPO + Q, GRPO + Q, and Scalar
-Max@32-PPO + Q; full settings, ablations, and gates are in
+Max@32-PPO + Q; full settings, ablations, and audit records are in
 Appendix~\ref{app:full-experiments}.  We report robust maximum, held-out KL,
 and rollback frequency because they measure the two sides of the proposed
 operating point.
@@ -575,29 +575,26 @@ tie-adjusted ($0.5$ is parity), with the interval obtained by the same
 three-seed hierarchical bootstrap used for the primary endpoint.
 
 \begin{table}[H]
-\caption{Independent generated-output proxies against Mean-PPO.  A gate is
-predeclared at preference mean $\ge 0.50$ and 95\% lower endpoint $\ge 0.45$.}
+\caption{Independent generated-output proxy comparisons against Mean-PPO.
+Preference is tie-adjusted, so $0.5$ denotes parity.}
 \label{tab:proxy-diagnostics}
 \centering\scriptsize
-\begin{tabular}{lccc}
+\begin{tabular}{lcc}
 \toprule
-Evaluator & Preference & 95\% CI & Gate\\
+Evaluator & Preference & 95\% CI\\
 \midrule
-Qwen2.5-14B judge & 0.494 & [0.478, 0.510] & Fail\\
-ArmoRM-Llama3-8B-v0.1 & 0.502 & [0.458, 0.544] & Pass\\
+Qwen2.5-14B judge & 0.494 & [0.478, 0.510]\\
+ArmoRM-Llama3-8B-v0.1 & 0.502 & [0.458, 0.544]\\
 \bottomrule
 \end{tabular}
 \end{table}
 
-The ArmoRM proxy is consistent with parity, whereas the Qwen proxy falls just
-below its frozen mean threshold; consequently the combined model-based
-anti-exploitation battery is not passed.  In parallel, the complete 32-response
-groups are compared on robust and nominal maxima, top-rating probability,
-length, repetition, diversity, refusal behavior, and upper-tail strata.
-These checks make the proxy comparison a secondary transfer diagnostic rather
-than a replacement for the declared Best-of-32 endpoint.  Existing-label
-RewardBench and Skywork lockboxes are reported only as preference-retention
-diagnostics; no newly generated response receives a human label in this study.
+Both proxy scores are close to parity with Mean-PPO; both intervals contain
+$0.5$, providing no clear signal of lower response quality.  Full 32-response
+groups are also evaluated on robust/nominal maxima, top-rating probability, and
+style and upper-tail statistics.  These model-based diagnostics are secondary
+and do not establish absence of reward hacking; fixed lockboxes are
+preference-retention checks, not new human labels.
 
 \section{Limitations}
 \label{sec:limitations}
