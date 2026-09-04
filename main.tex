@@ -63,11 +63,11 @@
 \maketitle
 
 \begin{abstract}
-Best-of-\(N\) sampling is common when a language model has a finite response
-budget and the best candidate is selected.  We study the resulting terminal-
-reward RLHF problem with a frozen ordinal Moment RM trained from HelpSteer2
-repeated helpfulness ratings and preference pairs.  Rather than replacing this
-bounded distribution by a scalar or Gaussian reward, we derive an exact
+The deployment objective is a finite-budget order statistic, while the
+evaluator exposes an uncertain ordinal distribution.  We study this mismatch
+in terminal-reward RLHF with a frozen ordinal Moment RM trained from HelpSteer2
+repeated helpfulness ratings and preference pairs.  Rather than collapsing this
+bounded ordinal distribution to a scalar or Gaussian reward, we derive an exact
 finite-support Best-of-\(N\) objective and a one-sided calibration correction
 for its upper tail.  \method{} turns the resulting exact marginal credit into
 a PPO update with mean and independent-quality floors, full-categorical KL
@@ -81,69 +81,60 @@ universal dominance or direct human-preference improvement.
 \section{Introduction}
 \label{sec:introduction}
 
+\paragraph{The deployment mismatch.}
 Language models are increasingly deployed with a finite generation budget:
 several responses are sampled and a downstream system returns, reranks, or
-inspects the best candidate.  Optimizing the expected score of one response
-therefore targets a different functional from the one used at inference.  A
-mean-improving update can leave the chance of a very high-scoring candidate
-unchanged, while a direct maximum objective can concentrate probability in a
+inspects the best candidate.  The deployment objective is therefore a
+finite-budget order statistic, not the expected score of one response.  A
+mean-improving update can leave the chance of a high-scoring candidate
+unchanged, whereas direct maximum optimization can concentrate probability in a
 small and brittle region of the response distribution.
 
-The second difficulty is evaluator error.  A maximum amplifies mistakes in the
-upper tail of a reward model, exactly where a policy trained against that model
-has the strongest incentive to exploit them.  Existing Best-of-\(N\), max@\(k\),
-and inference-aware policy-gradient objectives address the finite-budget target
-but generally use a scalar score or a nominal distribution.  They do not,
-within the same update, expose the finite ordinal thresholds, quantify
-calibration uncertainty, and protect ordinary quality and policy drift.
+\paragraph{Why current objectives leave a gap.}
+Mean-PPO and GRPO provide scalar expected or group-relative feedback; recent
+max@\(k\), Best-of-\(N\), and inference-aware policy-gradient methods match the
+deployment budget but usually collapse the evaluator to a scalar or a nominal
+distribution \citep{shao2024deepseekmath,guo2025deepseekr1,
+chow2025inference,tang2025inference,walder2025pkpo,bagirov2025best,
+li2026posttraining,poiani2026maxk}.  KL-regularized PPO controls policy motion
+but does not specify which ordinal tail functional should be optimized.  These
+choices leave a concrete gap: an upper-tail objective should preserve the
+ordinal thresholds, account for calibration error where the maximum is most
+sensitive, and expose ordinary quality and policy drift as separate measured
+quantities.
 
-Our starting point is a different evaluator interface.  The frozen Moment RM
-is trained from the repeated helpfulness ratings and preference pairs in
-HelpSteer2 \citep{wang2024helpsteer2} and returns probabilities over the five
-ratings \(\{0,1,2,3,4\}\).  This choice is consequential: its predictive mean
-is a model-implied ordinary score, while its conditional variance records a
-model-based signal of disagreement in the repeated-annotation protocol.  The
-full categorical output lets us compute the deployment maximum exactly; the
-variance is not added as a reward and is not treated as a human judgment of new
-responses.
+\paragraph{StableMax-PPO.}
+Our evaluator interface is a frozen Moment RM trained on the repeated
+helpfulness ratings and preference pairs in HelpSteer2
+\citep{wang2024helpsteer2}.  It returns a probability vector over
+\(\{0,1,2,3,4\}\): the mean is an ordinary model-implied score, the conditional
+variance is a diagnostic of disagreement under the repeated-annotation
+protocol, and the full vector preserves every threshold used by a finite-budget
+maximum.  We introduce \method{} by placing a one-sided calibration envelope
+around this vector.  The envelope gives an exact robust maximum and, from the
+same threshold products, an exact leave-one-out marginal credit.  A standard PPO
+realization then adds an independent quality floor, a reference-policy KL
+penalty, and exact batch rollback when a tentative update exceeds the hard KL
+level.
 
-We introduce \method{}, which combines two new pieces.  First, a one-sided
-calibration envelope turns the ordinal distribution into the exact worst case
-for a finite-budget maximum and yields a closed-form leave-one-out marginal
-credit.  Second, this credit is placed in a constrained PPO controller with an
-independent quality floor, a reference-policy KL penalty, and exact rollback of
-the policy and optimizer state when a tentative batch exceeds the hard KL
-level.  The first piece changes what is optimized; the second makes the desired
-max--stability operating point explicit and measurable.
+The novelty is the resulting evaluator-to-optimizer contract, not the isolated
+reuse of PPO or KL regularization.  The categorical evaluator determines the
+threshold functional; the envelope specifies its adverse calibration
+direction; and the same construction yields the response-level credit used by
+the policy gradient.  The controller keeps this target, ordinary quality, and
+policy motion separately auditable.  Consequently, a maximum gain obtained by
+changing the evaluator regime, lowering typical quality, or moving far from the
+reference appears on a different point of the measured frontier rather than
+being hidden inside one scalar reward.  This coupling is the key distinction
+from adding independent bonuses: the calibration choice changes both the
+deployment functional and the credit that differentiates it.
 
-The novelty is therefore an interface between an evaluator and a policy
-optimizer, rather than another PPO variant in isolation.  The evaluator exposes
-the five ordinal thresholds that the deployment maximum actually uses; the
-calibration envelope says how those thresholds should be stressed when the
-evaluator is uncertain; and the leave-one-out credit turns the resulting group
-functional into response-level learning signals.  The controller then keeps
-the target, ordinary quality, and policy motion as separately auditable
-quantities.  A single scalar reward weight cannot reveal whether an apparent
-maximum gain came from better responses, a changed evaluator regime, or simply
-a larger policy departure.
-
-The distinction between these pieces is important for interpreting the claim.
-The ordinal envelope is not another scalar reward shaping term: it changes the
-functional whose gradient is estimated.  The controller does not make the
-maximum objective easier to win; it makes the cost of obtaining a high maximum
-observable in the same run.  In particular, a method that raises the maximum
-only by moving far from the reference, lowering ordinary quality, or exploiting
-one evaluator should appear as a different point on the measured frontier.
-This lets us ask a falsifiable engineering question: can finite-budget maximum
-performance be improved without paying the full policy-drift cost of direct
-maximization?
-
-Our contributions are: (1) an exact finite-\(N\) robust objective for a bounded
-ordinal evaluator; (2) an exact Rao--Blackwellized marginal policy credit and
-its score-function identity; (3) a compact PPO realization with quality/KL
-safeguards and batch-level rollback; and (4) a frozen, multi-seed evaluation
-that reports favorable and failed gates.  The experiments support a
-stability-favoring operating point, not universal superiority over
+We make four contributions: (1) an exact finite-\(N\) robust objective for a
+bounded ordinal evaluator; (2) an exact Rao--Blackwellized marginal credit and
+score-function identity; (3) a compact PPO controller with quality/KL
+safeguards and state-complete rollback; and (4) a frozen, multi-seed evaluation
+that reports both favorable and failed gates.  The resulting evidence supports
+a stability-favoring operating point, not a universal ranking of
 max-oriented baselines.
 
 \section{Problem Setup}
@@ -154,65 +145,39 @@ parameter \(\theta\) is trainable; the ordinal Moment RM \(\omega\), scalar
 Quality RM \(\eta\), and reference policy \(\pi_{\rm ref}\) are frozen.  For
 \(x\sim\mathcal D\), responses factor as
 \(\pi_\theta(Y\mid x)=\prod_h\pi_\theta(a_h\mid x,a_{<h})\), and a rollout
-contains \(Y_{1:N}\sim\pi_\theta(\cdot\mid x)\) independently.  Each response receives one
+contains \(Y_{1:N}\overset{\mathrm{iid}}{\sim}\pi_\theta(\cdot\mid x)\).  Each response receives one
 terminal evaluation.  We assume (A1) conditional independence of rating
 outcomes across candidates, (A2) frozen evaluators, and (A3) the standard
-differentiability and likelihood-ratio regularity; these are the only
-assumptions needed below.
+differentiability and likelihood-ratio regularity.
 
-\paragraph{Methodology and motivation.}
-The deployment protocol determines the learning target: the policy is not asked
-to make every sampled response good, but to make a fixed-budget group contain a
-response that clears high ordinal thresholds.  This makes the evaluator--policy
-interface part of the problem.  A scalar reward can be optimized with standard
-PPO, but it cannot tell whether a group improvement comes from complementary
-upper-tail mass, a change in ordinary quality, or a larger departure from the
-reference policy.  We therefore keep these quantities separate throughout the
-objective, update, and evaluation rather than introducing one composite score.
-
-This setup isolates the source of the engineering difficulty.  The policy is
-trained from response-level likelihood ratios, but the deployment quantity is a
-group statistic over (N) responses and a latent ordinal rating.  A useful
-training signal must therefore preserve both the group interaction and the
-finite rating thresholds.  We keep the evaluators frozen so that changes in
-the measured frontier can be attributed to the policy update and its
-safeguards, rather than to a reward model moving during training.
+\paragraph{Deployment target and learning signal.}
+At deployment the group statistic is the maximum over the \(N\) candidates,
+whereas policy optimization supplies response-level likelihood ratios.  The
+learning signal must therefore preserve the interaction between candidates
+before assigning credit to individual responses.  This is also why the
+evaluators remain frozen: a change in the measured frontier should be
+attributable to the policy and controller, not to a moving target.
 
 \subsection{Frozen ordinal evaluator}
 \label{subsec:ordinal-rm}
 
 The Moment RM predicts \(p_{\omega,r}(x,y)=\Pr_\omega(R=r\mid x,y)\) for
-\(r\in\mathcal R=\{0,1,2,3,4\}\), with \(\sum_r p_{\omega,r}=1\).  We use
-\(\mu_\omega=\sum_r r p_{\omega,r}\) and
-\(\sigma_\omega^2=\sum_r(r-\mu_\omega)^2p_{\omega,r}\).  Retaining the full
-distribution, rather than only \(\mu_\omega\), is essential because a
-finite-budget maximum depends on every threshold.  The HelpSteer2 repeated
-annotations make \(\sigma_\omega^2\) a model-based disagreement signal under
-that protocol, not epistemic uncertainty or a stand-alone bonus.  The complete
-ordinal-probit parameterization is in Appendix~\ref{app:theory}.
+\(r\in\mathcal R=\{0,1,2,3,4\}\), with \(\sum_r p_{\omega,r}=1\).  We retain
+the categorical vector because the finite-budget maximum depends on every
+threshold, use \(\mu_\omega=\sum_r r p_{\omega,r}\) for the ordinary-quality
+floor, and record
+\(\sigma_\omega^2=\sum_r(r-\mu_\omega)^2p_{\omega,r}\) as a model-based
+disagreement diagnostic under the repeated-annotation protocol in HelpSteer2
+\citep{wang2024helpsteer2}.  The independent scalar Quality RM supplies an
+external quality check; the complete ordinal-probit parameterization is in
+Appendix~\ref{app:theory}.
 
-This evaluator choice is part of the contribution: it supplies a finite,
-auditable rating space in which the deployment maximum can be computed
-exactly, while a scalar quality model remains available as an independent
-check.  It is therefore different from treating a Gaussian or scalar reward
-as the deployment objective.
-
-There are two practical consequences.  First, the five categories are the
-annotation protocol itself, so the upper endpoint and the gaps between ratings
-are not chosen after inspecting policy outcomes.  Second, repeated labels make
-the conditional scale interpretable as disagreement in that protocol.  We use
-this signal to diagnose whether a policy is relying on unstable evaluator
-regions, but never add it to the optimization target.  The separation matters:
-using variance as a bonus would reward precisely the ambiguity that the
-calibration correction is intended to protect against.
-
-The resulting interface is deliberately asymmetric.  The mean is retained as
-an ordinary-quality floor, the variance as a diagnostic, and the categorical
-vector only where the finite-budget maximum needs it.  This prevents the task
-from silently becoming uncertainty seeking.  It also makes the artifact
-auditable: the predicted rating probabilities, their implied disagreement, and
-the independent quality score can be inspected separately instead of being
-collapsed into one scalar.
+This evaluator choice is part of the method's interface: the five categories
+are fixed by the annotation protocol, so the upper endpoint and threshold gaps
+are not selected after observing policy outcomes.  The mean, variance, and
+categorical vector consequently have separate roles rather than being collapsed
+into one reward.  The variance diagnoses unstable evaluator regions but does not
+enter the optimized target.
 
 \subsection{Finite-budget objective}
 \label{subsec:ordinal-objective}
@@ -229,31 +194,14 @@ or sampled-max approximation is introduced.  The probability of at least one
 rating-four response is a secondary diagnostic; the complete ordinal maximum
 is the primary estimand (Appendix~\ref{app:full-experiments}).
 
-The threshold form also clarifies what the policy is learning.  A response is
-valuable when it reduces the probability that every other candidate remains
-below a threshold, not merely when its mean score is large.  This gives a
-candidate credit that is sensitive to complementary upper-tail mass: two
-responses with the same mean can have different contributions if one changes
-the probability of crossing rating 3 or 4.  A scalar max@32 baseline cannot
-represent this distinction because it ranks candidates only by their collapsed
-means.
-
-This is where finite-budget optimization differs from ordinary reward
-maximization.  The group does not need every response to be good; it needs at
-least one response to clear each relevant threshold.  Improving a candidate
-that is redundant with the other (N-1) responses should therefore have little
-marginal value, while a candidate that supplies missing upper-tail mass should
-receive credit even if it is not the sampled winner.  The closed form exposes
-this complementarity before any rollout rating is sampled.
-
-This threshold view gives a precise comparison with scalar max training.  Two
-responses can have the same $\mu_\omega$ while placing their probability mass at
-different ordinal thresholds; the response with mass at a threshold that the
-other candidates do not cover has the larger $q_i^{\rm rob}$.  The distinction
-changes which response receives a policy gradient and remains visible when the
-group has no unique sampled winner.  The ordinal vector is therefore used only
-where it carries decision-relevant information; PPO still consumes a single
-response-level advantage after this calculation.
+The threshold form defines the signal that the policy must learn.  A candidate
+matters when it reduces the probability that all other responses remain below a
+threshold, so complementary upper-tail mass can receive credit even when no
+unique sampled winner exists.  Two candidates with the same
+\(\mu_\omega\) can therefore induce different group gains; a scalar max@32
+objective cannot represent this distinction because it ranks only collapsed
+scores.  The group statistic is converted to response-level credit only after
+this complementarity has been computed.
 
 \subsection{Calibration uncertainty}
 \label{subsec:robust-objective}
@@ -286,26 +234,12 @@ J_N^{\rm rob}(\theta)&=\mathbb E_{x,Y_{1:N}}[h_N^{\rm rob}(x,Y_{1:N})].
 \end{aligned}
 \end{equation}
 \end{samepage}
-The one-sided envelope is the key robustness choice: it adds adverse low-rating
-mass, but never converts variance into reward.  Its radius is an explicit
-conservatism knob rather than a hidden tuning preference.
-
-The direction of the envelope follows the deployment objective.  For a maximum,
-increasing a candidate CDF decreases the chance of crossing every threshold;
-the upper-CDF envelope is therefore pessimistic in exactly the harmful
-direction.  A symmetric interval would spend robustness budget on the benign
-direction as well and would no longer have the same closed-form worst case.
-Because the radius is fixed from a disjoint calibration split, this protection
-cannot be tuned toward a favorable policy after training.
-
-The envelope is a robustness device, not a claim that calibration error is
-uniform across prompts.  Its operational role is to make a specific failure
-mode explicit: if a response appears strong only because its predicted
-lower-tail probabilities are optimistic, the envelope removes that free
-advantage before the policy receives credit.  Where the evaluator is well
-calibrated, the correction is small and the objective approaches the nominal
-finite-budget maximum.  Thus \(\varepsilon_{\rm cal}\) is a sensitivity knob,
-not an unexplained regularization coefficient.
+The one-sided envelope is chosen for the maximum's adverse direction:
+increasing a candidate CDF decreases the probability of crossing every
+threshold.  It therefore adds low-rating mass without turning disagreement into
+a reward.  Because the radius is fixed on a disjoint calibration split, it is a
+measurable conservatism knob rather than a policy-dependent tuning preference;
+when calibration error is small, the robust target approaches the nominal one.
 
 \subsection{Constrained policy objective}
 \label{subsec:constrained-objective}
@@ -322,9 +256,9 @@ M(\theta)\ge m_0,\quad Q(\theta)\ge q_0,\quad
 \mathbb E_x[\mathrm{KL}(\pi_\theta\Vert\pi_{\rm ref})]\le\delta .
 \end{equation}
 The floors are fixed from the reference policy before training, while
-\(\delta_{\rm hard}\) is an empirical rollback threshold.  The independent
-Quality RM and KL controller are safeguards against evaluator-specific
-overoptimization, not proofs that reward hacking is impossible.
+\(\delta_{\rm hard}\) is the empirical rollback threshold used by the
+controller.  The independent Quality RM and KL controller keep the measured
+trade-off auditable under a fixed evaluator.
 
 Each constraint addresses a different failure mode.  The nominal-mean floor
 prevents a tail optimizer from sacrificing the typical response; the independent
@@ -333,22 +267,24 @@ evaluator; and the KL budget limits how much behavior can change while these
 scores are being optimized.  We consequently report the maximum and drift as
 separate axes instead of combining them into an arbitrary weighted sum.
 
-The constraints are intentionally not folded into the robust maximum itself.
-Doing so would obscure whether an update improved the deployment target or
-merely paid for it with a different quality or drift trade-off.  In the
-implementation, the floors enter through dual credits, the KL term enters the
-PPO surrogate, and rollback is a binary acceptance rule.  The resulting
-diagnostics remain distinct: objective value, constraint residuals, measured
-held-out drift, and rejected-step frequency.
+The constraints are not folded into the robust maximum: the floors enter
+through dual credits, the KL term enters the PPO surrogate, and rollback is a
+binary acceptance rule.  We therefore report objective value, constraint
+residuals, held-out drift, and rejected-step frequency as distinct diagnostics.
 
 \paragraph{Relation to existing objectives.}
 \method{} builds on PPO and prior inference-aware, pass@\(k\), max@\(k\), and
 Best-of-\(N\) policy-gradient objectives
 \citep{chow2025inference,tang2025inference,walder2025pkpo,
-bagirov2025best,li2026posttraining,poiani2026maxk}; we do not claim the first
-finite-budget maximum.  The new object is their combination with a bounded
-ordinal evaluator, exact robust order statistics, an exact marginal credit,
-and simultaneous mean, independent-quality, and KL safeguards.
+bagirov2025best,li2026posttraining,poiani2026maxk}; it does not claim the first
+finite-budget maximum.  The comparator matrix instead isolates the proposed
+contract: Mean-PPO and GRPO retain scalar expected or group-relative feedback,
+Scalar Max@32 retains the budget but collapses the ordinal evaluator, nominal
+EV removes only the calibration envelope, and no-floor variants remove one
+safeguard.  Entropic and Gaussian variants test alternative distributional
+assumptions.  This factorization distinguishes a change in the target from a
+change in the controller, rather than presenting the method as an unexplained
+stack of familiar PPO heuristics.
 
 \section{Method}
 \label{sec:method}
@@ -412,34 +348,14 @@ Under the regularity assumptions, \(q_i^{\rm rob}\) satisfies
 Consequently, the response-level estimator is unbiased before PPO clipping.
 \end{theorem}
 
-The identity is more than a restatement of the maximum: it is the bridge from
-the robust deployment objective to a trainable update.  It also avoids the
-high-variance choice of drawing a rating for every response and then assigning
-the sampled winner's credit.
-
-The identity also explains why the proposed credit is response-level rather
-than token-level.  The group statistic determines which response should move
-the policy, while the autoregressive likelihood ratio distributes that credit
-over its generated tokens.  The method can therefore add a group-aware target
-without a new optimizer or a second rating-sampling loop.  It remains
-compatible with PPO's clipping and minibatch machinery, while the exactness
-claim stays attached to the pre-clipping objective where it can be proved.
-
-The identity is stated before clipping because it is a property of the target
-functional, not of a particular optimizer.  PPO clipping may introduce the
-usual controlled surrogate bias, but it does not change which response-level
-quantity is being estimated.  This separation lets the experiments attribute
-changes in the max--stability frontier to the proposed credit and controller,
-rather than to a hidden change in the deployment metric.
-
-\paragraph{Implementation consequence.}
-The estimator is exact with respect to the frozen evaluator and the declared
-product model, but it does not require sampling a latent rating.  In a rollout,
-the same cached categorical probabilities feed the robust objective, every
-leave-one-out credit, and the diagnostic variance.  This shared computation is
-important for engineering reproducibility: a mismatch between the metric used
-for evaluation and the credit used for training cannot be attributed to separate
-sampling noise or to an unreported reward transformation.
+\paragraph{Why the identity matters.}
+The score-function identity is the bridge from the group deployment target to a
+trainable response-level update.  It integrates out latent rating draws, while
+the autoregressive likelihood ratio distributes each candidate's group credit
+over its tokens.  The same cached categorical probabilities therefore feed the
+robust objective, all leave-one-out credits, and the disagreement diagnostic in
+\(O(N|\mathcal R|)\) time.  Exactness is asserted for this pre-clipping target;
+PPO then supplies the standard clipped surrogate and minibatch machinery.
 
 \subsection{Constrained PPO update}
 \label{subsec:constrained-credit}
@@ -466,24 +382,9 @@ updates, is specified in Appendix~\ref{app:algorithm}.
 Before a tentative step, \method{} snapshots all policy parameters and the
 complete optimizer state.  If the post-update KL on the same rollout states
 exceeds \(\delta_{\rm hard}\), both snapshots are restored; baseline, dual,
-RMS, and controller states advance only after acceptance.  Thus rollback is an
-exact batch-level invariant, while the population KL constraint remains an
-empirical design target.
-
-The controller is intentionally conservative about state.  A rejected update
-must not train the prompt baseline, change either dual variable, or alter the
-normalization statistics; otherwise the next accepted step would depend on an
-update that the algorithm itself declared unsafe.  Snapshotting the optimizer
-state as well as the parameters is necessary for Adam-like optimizers, whose
-moment buffers otherwise retain the rejected step.
-
-This state discipline makes the rollback count interpretable.  A rejection is
-not a hidden partial update: the policy, optimizer moments, baseline, dual
-variables, and normalization scale all remain at the pre-step state.  Accepted
-and rejected steps can therefore be compared across baselines under the same
-controller.  The gate is still only a batch diagnostic, which is why we report
-both held-out KL and rollback frequency rather than presenting rollback as a
-population trust-region guarantee.
+RMS, and controller states advance only after acceptance.  Snapshotting the
+optimizer moments is necessary for Adam-like optimizers, and the resulting
+rollback count is comparable across baselines under the shared controller.
 
 \subsection{StableMax-PPO}
 \label{subsec:algorithm}
@@ -530,15 +431,11 @@ Without exact coverage, the gap is at most \(4N\xi(x,Y_{1:N})\), where
 \end{theorem}
 \end{samepage}
 
-This theorem makes the claim deliberately conditional: calibration on prompt
-clusters is not a pointwise guarantee for every generated response.  The
-envelope is valuable because it converts that uncertainty into a measurable
-lower-tail protection term rather than an informal confidence statement.
-In particular, the theorem does not say that the frozen Moment RM is correct
-on every new response.  It says what follows if the declared envelope covers
-the relevant conditional CDFs, and quantifies the penalty when it misses.  This
-is the distinction between a calibration-robust objective and an unsupported
-claim of reward-model reliability.
+The statement is conditional on pointwise envelope coverage.  Cluster-level
+calibration estimates the radius but does not establish coverage for every
+generated response; the residual \(\xi\) quantifies the resulting loss when the
+envelope misses.  Thus the theorem supplies an operational lower-tail bound
+under an explicit assumption rather than an informal reliability claim.
 
 \subsection{Dependence on the calibration radius}
 \label{subsec:radius-analysis}
@@ -549,16 +446,10 @@ For \(0\le\varepsilon_1\le\varepsilon_2\le1\),
 \le4N(\varepsilon_2-\varepsilon_1)\), and at \(\varepsilon=0\),
 \(J_N^{\rm rob}(\theta;0)=J_N^{\rm nom}(\theta)\).
 \end{proposition}
-The radius is therefore an interpretable robustness knob: increasing it can
-only make the target more conservative, with a finite sensitivity bound.
-
-The bound also clarifies how the knob should be used.  It is a statement about
-the target before policy optimization: increasing the radius cannot create a
-spurious gain in the reported robust maximum, although it can change which
-responses receive credit.  This is different from tuning a KL coefficient,
-which changes the optimization path while leaving the deployment functional
-fixed.  Reporting both quantities lets the experiment distinguish conservatism
-in the objective from conservatism in the update.
+The proposition makes \(\varepsilon_{\rm cal}\) an interpretable target-level
+knob: increasing it can only make the robust maximum more conservative, with a
+finite sensitivity bound.  This is distinct from tuning a KL coefficient,
+which changes the optimization path while leaving the target functional fixed.
 
 \subsection{Rollback invariant}
 \label{subsec:rollback-analysis}
@@ -569,26 +460,12 @@ snapshots exactly returns the measured rollout-state policy and optimizer to
 their pre-update values.  This is a batch-level invariant, not a population KL
 guarantee.
 \end{proposition}
-The three results separate the mathematical and engineering roles of the
-method: calibration protects the target, the marginal credit makes it
-optimizable, and rollback controls observed policy motion.
-
-Together, these statements provide a compositional account of the method's
-value.  The finite-support result is exact under the declared independence
-model; the coverage result states what calibration error can and cannot imply;
-and rollback gives an implementation invariant for the observed batch.  None
-of them is a blanket claim of human alignment or a population trust region,
-which is why the empirical section treats the safeguards as measurable
-operating-point controls.
-
-The guarantees are intentionally modular.  The finite-support and gradient
-results are properties of the evaluator interface and the deployment
-functional, whereas rollback is a property of the optimizer state machine.
-Improving one component therefore cannot silently repair a failure in another:
-a stable update does not correct a calibration miss, and a calibrated objective
-does not prevent a large policy step.  This separation is what makes the
-calibration residual, rollback count, and independent-evaluator diagnostics
-useful as distinct engineering signals.
+These results separate the method's roles: the envelope protects the target,
+the marginal identity makes it optimizable, and rollback controls the measured
+batch update.  The first two are model-conditional statements about the
+declared evaluator and independence model; the last is an implementation
+invariant.  We therefore treat calibration residuals, held-out KL, and
+rollback frequency as separate engineering diagnostics.
 
 \section{Experiments}
 \label{sec:experiments}
