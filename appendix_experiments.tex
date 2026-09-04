@@ -35,6 +35,13 @@ Accordingly, the preregistered all-gates field is
 it is not evidence of direct human-preference improvement or a proof that
 reward-model exploitation is absent.
 
+The gate vector is intentionally read as a decision record rather than a
+single leaderboard score.  A method can pass the KL and quality safeguards
+while failing a max non-inferiority comparison, or improve the target reward
+while failing an independent proxy.  Reporting the vector preserves these
+distinctions and prevents a favorable endpoint from hiding a failure mode that
+the method was designed to measure.
+
 \subsection{Models, data, and split discipline}
 \label{subsec:models-data}
 
@@ -83,13 +90,7 @@ independent policy-training prompts, with four responses per prompt.  For
 \(Z\in\{\mu_\omega,Q_\eta\}\), let
 \(\bar Z_g\) be the four-response prompt mean and let
 \(L_Z\) be the fifth percentile of 10,000 bootstrap means obtained by
-resampling prompts.  The frozen floor is
-
-\begin{equation}
-\label{eq:experimental-floor}
-z_0=L_Z-0.1s_Z,
-\end{equation}
-
+resampling prompts.  The frozen floor is \(z_0=L_Z-0.1s_Z\),
 where \(s_Z\) is the response-level standard deviation in the same
 reference sample.  The bootstrap unit, one-sided level, 10,000 draws, sample
 counts, generation seed, bootstrap seed, and practical margin are all
@@ -137,6 +138,15 @@ from the untrained base policy and ranks them by
 compute-matched training baseline; its generation and scoring cost is reported
 separately.
 
+The comparator set is organized to separate three changes that are otherwise
+easy to conflate: the deployment functional (mean, scalar maximum, top-rating,
+or full ordinal maximum), the calibration correction, and the stabilizers.
+The nominal ordinal and Gaussian variants hold the policy optimizer fixed while
+changing the evaluator assumption; the no-floor variants hold the target fixed
+while removing one safeguard.  This is why the ablations support a causal
+interpretation of the observed frontier without claiming that any single
+component is universally beneficial.
+
 \begin{table}[t]
 \caption{Complete aggregate table. Values are three-seed robust expected
 maximum, with 95\% confidence intervals, held-out KL, and rollback counts.}
@@ -181,6 +191,12 @@ The group-level maximum uses all candidates and does not require a selected
 response.  A deployment-style
 \(\arg\max_i\mu_\omega(x,Y_i)\) response is reported
 only as a secondary selector diagnostic.
+
+The nested-\(N\) evaluation is also a variance-control choice.  Reusing the
+same cached response prefixes makes changes in the endpoint attributable to
+the budget rather than to a new generation sample.  The held-out KL is computed
+on common base trajectories for the same reason, so a lower value reflects less
+measured policy motion under a paired protocol rather than an easier test set.
 
 For completeness, the top-category diagnostic used in the cached evaluation
 is

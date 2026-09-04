@@ -9,22 +9,16 @@ For each prompt $x_b$, the implementation caches behavior-policy token log
 probabilities and response masks before evaluating any reward model. The five
 ordinal probabilities are converted to prefix CDFs. For
 $t=0,\ldots,3$, the robust envelope is
-\[
-\bar F_{b,i}(t)=\min\{1,F_{\omega,b,i}(t)+\varepsilon_{\rm cal}\},
-\quad \bar F_{b,i}(-1)=0,\quad \bar F_{b,i}(4)=1.
-\]
+\(\bar F_{b,i}(t)=\min\{1,F_{\omega,b,i}(t)+\varepsilon_{\rm cal}\}\),
+with \(\bar F_{b,i}(-1)=0\) and \(\bar F_{b,i}(4)=1\).
 The robust probabilities are adjacent differences of this envelope. Prefix
 and suffix products compute all group values and leave-one-out credits in
 $O(BN|\mathcal R|)$ time without enumerating rating tuples.
 
 The constrained credit used by the PPO surrogate is
-\[
-\tilde q_{b,i}=q^{\rm rob}_{b,i}
- +\frac{\lambda_m}{N}\mu_\omega(x_b,Y_{b,i})
- +\frac{\lambda_q}{N}Q_\eta(x_b,Y_{b,i}),
-\qquad
-A_{b,i}=N[\tilde q_{b,i}-b_\psi(x_b)].
-\]
+\(\tilde q_{b,i}=q^{\rm rob}_{b,i}+\lambda_m\mu_\omega(x_b,Y_{b,i})/N+
+\lambda_qQ_\eta(x_b,Y_{b,i})/N\), with
+\(A_{b,i}=N[\tilde q_{b,i}-b_\psi(x_b)]\).
 The prompt baseline is fitted only from accepted transitions. Dual variables
 use projected updates after acceptance; rejected steps leave all controller
 state unchanged. The lagged RMS scale is computed from accepted credits only,

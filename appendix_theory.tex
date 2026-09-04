@@ -7,28 +7,26 @@
 The frozen Moment RM emits a latent location $m_\omega(x,y)$ and positive
 scale $s_\omega(x,y)$.  With frozen cutpoints
 $c_1<\cdots<c_4$, its five-category probabilities are
-\begin{align}
-p_{\omega,0}
-&=\Phi\!\left(\frac{c_1-m_\omega}{s_\omega}\right),\\
-p_{\omega,r}
-&=\Phi\!\left(\frac{c_{r+1}-m_\omega}{s_\omega}\right)
--\Phi\!\left(\frac{c_r-m_\omega}{s_\omega}\right),
-\quad r=1,2,3,\\
-p_{\omega,4}
-&=1-\Phi\!\left(\frac{c_4-m_\omega}{s_\omega}\right).
-\end{align}
-The moments used by the policy are
-\[
-\mu_\omega=\sum_{r=0}^4 r p_{\omega,r},
-\qquad
-\sigma_\omega^2=\sum_{r=0}^4(r-\mu_\omega)^2p_{\omega,r}.
-\]
+\(p_{\omega,0}=\Phi((c_1-m_\omega)/s_\omega)\),
+\(p_{\omega,r}=\Phi((c_{r+1}-m_\omega)/s_\omega)-
+\Phi((c_r-m_\omega)/s_\omega)\) for $r=1,2,3$, and
+\(p_{\omega,4}=1-\Phi((c_4-m_\omega)/s_\omega)\).  The moments used by
+the policy are \(\mu_\omega=\sum_{r=0}^4rp_{\omega,r}\) and
+\(\sigma_\omega^2=\sum_{r=0}^4(r-\mu_\omega)^2p_{\omega,r}\).
 Repeated-rating likelihood and disagreement supervise the conditional scale;
 therefore this variance is a model-based signal of annotation disagreement,
 not epistemic uncertainty or a stand-alone reward.  Proper scoring and
 calibration are required because the complete categorical distribution enters
 the finite-budget objective \citep{mccullagh1980regression,kendall2017uncertainties,
 lou2024uncertainty,sun2025purm,gneiting2007strictly,guo2017calibration}.
+
+This parameterization is included to make the evaluator interface reproducible,
+not to claim a new ordinal-link model.  The methodological choice is what the
+policy does with the frozen output: the same five probabilities support the
+nominal mean, threshold products, robust envelope, and disagreement diagnostic.
+Keeping these uses separate is important because replacing the vector by its
+mean would make the finite-budget objective and its calibration check
+unidentifiable.
 
 \begin{proposition}[Finite-support threshold decomposition]
 \label{prop:threshold-decomposition}
@@ -39,17 +37,18 @@ nondecreasing under first-order stochastic improvement of any candidate.
 Moreover, \cref{eq:any-four} is its highest-threshold component.
 \end{proposition}
 
-\begin{proof}
-For any integer-valued \(Z\in\{0,\ldots,4\}\), the
-tail-sum identity gives
-\(\mathbb E[Z]
-=\sum_{t=1}^{4}\Pr\{Z\ge t\}\).
-Taking \(Z=\max_jR_j\) and using (A1),
+The proposition is the finite-support sanity check for the main construction.
+It also explains why the top-rating diagnostic in the artifact is not a
+substitute for the reported objective: it is only the \(t=4\) term, whereas the
+method trains against all four threshold events.  This distinction prevents a
+policy from appearing successful by concentrating probability only at the
+highest category while degrading the intermediate ordinal structure.
 
-\[
-\Pr\{\max_jR_j<t\mid x,Y_{1:N}\}
-=\prod_{j=1}^{N}F_{\omega,j}(t-1).
-\]
+\begin{proof}
+For any integer-valued \(Z\in\{0,\ldots,4\}\), the tail-sum identity gives
+\(\mathbb E[Z]=\sum_{t=1}^{4}\Pr\{Z\ge t\}\).  Taking
+\(Z=\max_jR_j\) and using (A1) gives
+\(\Pr\{\max_jR_j<t\mid x,Y_{1:N}\}=\prod_{j=1}^{N}F_{\omega,j}(t-1)\).
 
 Substitution proves \cref{eq:ordinal-max-closed}.  Each term lies in
 \([0,1]\), so the sum lies in \([0,4]\).  First-order
@@ -64,15 +63,8 @@ decrease any summand.  At \(t=4\),
 Assume the validation prompt clusters are independent and that the RM is
 fixed before evaluating them.  Then the radius in
 \cref{eq:epsilon-calibration} satisfies, with probability at least
-\(1-\alpha_{\mathrm{cal}}\),
-
-\begin{equation}
-\label{eq:population-calibration}
-\mathbb E[D_t]
-\le\varepsilon_{\mathrm{cal}}
-\qquad
-\text{simultaneously for }t=0,1,2,3.
-\end{equation}
+\(1-\alpha_{\mathrm{cal}}\), \(\mathbb E[D_t]\le\varepsilon_{\mathrm{cal}}\)
+simultaneously for $t=0,1,2,3$.
 \end{proposition}
 
 \begin{proof}
@@ -80,16 +72,9 @@ Conditional on the frozen responses and predictions, changing all binary
 indicators in a prompt cluster from zero to one changes \(D_{g,t}\) by
 at most one.  Thus each cluster residual lies in an interval of width one.
 Hoeffding's inequality gives
-
-\[
-\Pr\left(
-\mathbb E[D_t]-\widehat d_t
->\sqrt{
-\frac{\log(4/\alpha_{\mathrm{cal}})}
-{2G_{\mathrm{cal}}}}
-\right)
-\le\frac{\alpha_{\mathrm{cal}}}{4}.
-\]
+\(\Pr(\mathbb E[D_t]-\widehat d_t>
+\sqrt{\log(4/\alpha_{\mathrm{cal}})/(2G_{\mathrm{cal}})})
+\le\alpha_{\mathrm{cal}}/4\).
 
 A union bound over four thresholds proves the simultaneous event.  On that
 event, every right-hand side is bounded by the unclipped expression in
@@ -105,15 +90,19 @@ pointwise guarantee that every conditional CDF lies in the ambiguity set.
 The pointwise premise required by the next theorem is therefore stated
 explicitly rather than inferred from a small number of repeated ratings.
 
-\paragraph{Proof of Theorem~\ref{thm:main-max}.}
-The envelope \(\overline F_j\) is nondecreasing, has boundary
-values zero and one, and therefore defines a valid categorical distribution.
-For every feasible \(q_j\in\mathcal U\),
+This scope distinction is operationally relevant.  The calibration split
+controls how the radius is chosen before training, while the theorem in the
+main text describes what follows if the resulting envelope covers a generated
+candidate.  Conflating these statements would turn an average calibration
+diagnostic into an unjustified pointwise claim; the artifact keeps the
+calibration estimate and the conditional robustness guarantee as separate
+records.
 
-\[
-F_{q_j}(t)\le\overline F_j(t),
-\qquad t=0,1,2,3.
-\]
+\paragraph{Proof of Theorem~\ref{thm:main-max}.}
+The envelope \(\overline F_j\) is nondecreasing, has boundary values zero and
+one, and therefore defines a valid categorical distribution.  For every
+feasible \(q_j\in\mathcal U\),
+\(F_{q_j}(t)\le\overline F_j(t)\) for \(t=0,1,2,3\).
 
 Hence \(q_j\) first-order stochastically dominates
 \(\overline p_j\), or equivalently
@@ -130,13 +119,8 @@ first-order stochastic dominance gives the lower-bound inequality in
 Theorem~\ref{thm:coverage-summary}.  For the misspecified case, define
 \(\xi=\max_{j,t}[F_j^*(t)-\overline F_j(t)]_+\).  At each threshold, the
 true and robust tail-sum terms can differ only through the corresponding
-CDF products.  For
-\(a_j,b_j\in[0,1]\),
-
-\[
-\prod_ja_j-\prod_jb_j
-\le\sum_j(a_j-b_j)_+.
-\]
+CDF products.  For \(a_j,b_j\in[0,1]\),
+\(\prod_ja_j-\prod_jb_j\le\sum_j(a_j-b_j)_+\).
 
 Apply this inequality with
 \(a_j=F_j^*(t-1)\) and
@@ -150,19 +134,15 @@ preserves the resulting inequality
 Fix a candidate group and threshold \(t\), and write
 \(a_j(\varepsilon)=\min\{1,F_{\omega,j}(t-1)+\varepsilon\}\).  For
 \(\varepsilon_1\le\varepsilon_2\),
-\[
-0\le a_j(\varepsilon_2)-a_j(\varepsilon_1)
-\le \varepsilon_2-\varepsilon_1.
-\]
-The telescoping product identity and \(a_j(\varepsilon)\in[0,1]\) then give
-\[
-0\le \prod_j a_j(\varepsilon_2)-\prod_j a_j(\varepsilon_1)
-\le \sum_j\bigl(a_j(\varepsilon_2)-a_j(\varepsilon_1)\bigr)
-\le N(\varepsilon_2-\varepsilon_1).
-\]
+the clipping map gives \(0\le a_j(\varepsilon_2)-a_j(\varepsilon_1)\le
+\varepsilon_2-\varepsilon_1\).  The telescoping product identity and
+\(a_j(\varepsilon)\in[0,1]\) then give
+\(0\le\prod_j a_j(\varepsilon_2)-\prod_j a_j(\varepsilon_1)\le
+\sum_j(a_j(\varepsilon_2)-a_j(\varepsilon_1))\le N(\varepsilon_2-\varepsilon_1)\).
 Substituting this bound into the four-term tail-sum expression for
 \(h_N^{\mathrm{rob}}\), and then taking the expectation over prompts and
-responses, proves \cref{eq:radius-bound}.  At \(\varepsilon=0\), the envelope
+responses, proves Proposition~\ref{prop:radius-monotonicity}.  At
+\(\varepsilon=0\), the envelope
 equals the nominal CDF, so the exact infimum in
 Theorem~\ref{thm:main-max} equals \(J_N^{\mathrm{nom}}(\theta)\).
 
@@ -179,38 +159,17 @@ therefore makes no population-level KL claim.
 
 \paragraph{Proof of Theorem~\ref{thm:main-gradient}.}
 For nonnegative integer ratings,
-
-\[
-(\overline R_i-\overline M_{-i})_+
-=\sum_{t=1}^{4}
-\mathbf 1\{
-\overline R_i\ge t,
-\overline M_{-i}<t
-\}.
-\]
-
+\((\overline R_i-\overline M_{-i})_+
+=\sum_{t=1}^{4}\mathbf 1\{\overline R_i\ge t,\overline M_{-i}<t\}\).
 Taking conditional expectations and using (A1) gives
-
-\[
-\Pr\{
-\overline R_i\ge t,
-\overline M_{-i}<t
-\mid x,Y_{1:N}
-\}
-=\left[1-\overline F_i(t-1)\right]
-\prod_{j\ne i}\overline F_j(t-1),
-\]
+\(\Pr\{\overline R_i\ge t,\overline M_{-i}<t\mid x,Y_{1:N}\}
+=[1-\overline F_i(t-1)]\prod_{j\ne i}\overline F_j(t-1)\),
 
 which proves \cref{eq:robust-credit-closed}.  For the gradient, fix
 \(i\) and condition on \((x,Y_{-i})\).  The group value
 decomposes as
-
-\[
-h_N^{\mathrm{rob}}
-=\mathbb E[
-\overline M_{-i}\mid x,Y_{-i}]
-+q_i^{\mathrm{rob}}.
-\]
+\(h_N^{\mathrm{rob}}=\mathbb E[\overline M_{-i}\mid x,Y_{-i}]
++q_i^{\mathrm{rob}}\).
 
 The first term is independent of \(Y_i\), and the score-function
 identity implies that its product with
@@ -222,18 +181,21 @@ to all \(N\) iid responses and summing the remaining terms proves
 \begin{proposition}[\(N=1\) reduction and complexity]
 \label{cor:n1-reduction}
 For \(N=1\),
-
-\[
-h_1^{\mathrm{rob}}
-=q_1^{\mathrm{rob}}
-=\sum_{r=0}^{4}r\overline p_{1,r}.
-\]
+\(h_1^{\mathrm{rob}}=q_1^{\mathrm{rob}}
+=\sum_{r=0}^{4}r\overline p_{1,r}\).
 
 Thus the upper-tail reward component reduces exactly to robust mean reward.
 For general \(N\), all group values and marginal credits can be
 computed in \(O(N|\mathcal R|)\) time using threshold-wise prefix
 and suffix products.
 \end{proposition}
+
+This reduction is a useful implementation check: at \(N=1\), the method must
+recover the robust mean and cannot manufacture a group advantage.  For
+\(N>1\), the additional terms are exactly the response's incremental chance of
+opening a new threshold above the other candidates.  The test suite evaluates
+both regimes, so a change in the group objective cannot be explained by a
+special-case implementation.
 
 \begin{proof}
 With one candidate, the empty opponent maximum is zero, so
