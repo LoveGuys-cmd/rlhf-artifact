@@ -24,8 +24,9 @@ measurement for newly generated outputs.
 
 Run `pdflatex paper.tex`, `bibtex paper`, then `pdflatex paper.tex` twice.
 The source uses the bundled official ICLR 2027 `.sty` and `.bst` files.
-`paper.tex` contains the anonymous nine-page main paper followed by references
-and appendices. Machine-readable tables are the source of all reported values.
+`paper.tex` contains the anonymous main paper within the nine-page limit,
+followed by references and appendices. Machine-readable tables are the source
+of all reported values.
 
 Regenerate the robust-max--KL Pareto figure with
 `python3 plot_max_kl_pareto.py`. The script reads the checked-in per-seed CSV
