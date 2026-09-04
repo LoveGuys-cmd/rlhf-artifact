@@ -61,8 +61,13 @@ decrease any summand.  At \(t=4\),
 \begin{proposition}[Prompt-cluster calibration statement]
 \label{prop:calibration-radius}
 Assume the validation prompt clusters are independent and that the RM is
-fixed before evaluating them.  Then the radius in
-\cref{eq:epsilon-calibration} satisfies, with probability at least
+fixed before evaluating them.  The radius used in the main text is
+\begin{equation}
+\label{eq:epsilon-calibration}
+\varepsilon_{\rm cal}=\min\!\left\{1,\max_{t=0,\ldots,3}(\widehat d_t)_+
+ +\sqrt{\frac{\log(4/\alpha_{\rm cal})}{2G_{\rm cal}}}\right\}.
+\end{equation}
+Then, with probability at least
 \(1-\alpha_{\mathrm{cal}}\), \(\mathbb E[D_t]\le\varepsilon_{\mathrm{cal}}\)
 simultaneously for $t=0,1,2,3$.
 \end{proposition}

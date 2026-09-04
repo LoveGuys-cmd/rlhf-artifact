@@ -210,19 +210,16 @@ Because the maximum magnifies upper-tail errors, we estimate a one-sided radius
 from independent prompt clusters before training.  For threshold
 \(t\in\{0,1,2,3\}\), let \(D_{g,t}\) be the within-cluster mean of
 \(\ind{R\le t}-F_\omega(t)\), and let \(\widehat d_t\) be its mean across
-clusters.  The frozen radius is
-\begin{equation}
-\label{eq:epsilon-calibration}
-\varepsilon_{\rm cal}=\min\!\left\{1,\max_{t=0,\ldots,3}(\widehat d_t)_+
- +\sqrt{\frac{\log(4/\alpha_{\rm cal})}{2G_{\rm cal}}}\right\}.
-\end{equation}
-\begin{samepage}
-For \(\mathcal U_\varepsilon(p)=\{q\in\Delta^4:F_q(t)\le
+clusters.  We set \(\varepsilon_{\rm cal}\) to the maximum positive
+\(\widehat d_t\) plus a simultaneous Hoeffding correction, clipped to \([0,1]\);
+the exact estimator and its calibration statement are given in
+Appendix~\ref{app:theory}.  For \(\mathcal U_\varepsilon(p)=\{q\in\Delta^4:F_q(t)\le
 \min(1,F_p(t)+\varepsilon),\ t=0,\ldots,3\}\), let
 \(\overline F_j(t)=\min(1,F_{\omega,j}(t)+\varepsilon_{\rm cal})\), with
 \(\overline F_j(-1)=0\), \(\overline F_j(4)=1\), and induced mass
 \(\overline p_{j,r}=\overline F_j(r)-\overline F_j(r-1)\).  The robust
 objective is
+\begin{samepage}
 \begin{equation}
 \label{eq:robust-max-closed}
 \begin{aligned}
@@ -240,6 +237,9 @@ threshold.  It therefore adds low-rating mass without turning disagreement into
 a reward.  Because the radius is fixed on a disjoint calibration split, it is a
 measurable conservatism knob rather than a policy-dependent tuning preference;
 when calibration error is small, the robust target approaches the nominal one.
+Crucially, the envelope changes the threshold probabilities used by both the
+group target and its marginal credit, so robustness is part of the objective's
+definition rather than an auxiliary penalty.
 
 \subsection{Constrained policy objective}
 \label{subsec:constrained-objective}
@@ -277,14 +277,12 @@ residuals, held-out drift, and rejected-step frequency as distinct diagnostics.
 Best-of-\(N\) policy-gradient objectives
 \citep{chow2025inference,tang2025inference,walder2025pkpo,
 bagirov2025best,li2026posttraining,poiani2026maxk}; it does not claim the first
-finite-budget maximum.  The comparator matrix instead isolates the proposed
-contract: Mean-PPO and GRPO retain scalar expected or group-relative feedback,
-Scalar Max@32 retains the budget but collapses the ordinal evaluator, nominal
-EV removes only the calibration envelope, and no-floor variants remove one
-safeguard.  Entropic and Gaussian variants test alternative distributional
-assumptions.  This factorization distinguishes a change in the target from a
-change in the controller, rather than presenting the method as an unexplained
-stack of familiar PPO heuristics.
+finite-budget maximum.  Our comparator matrix instead separates the proposed
+contract from familiar components: scalar and group-relative baselines change
+the target, nominal EV removes only calibration robustness, and no-floor
+variants remove one safeguard.  This factorization lets the experiments
+attribute changes to the evaluator-defined target or to the controller rather
+than to an undifferentiated stack of PPO heuristics.
 
 \section{Method}
 \label{sec:method}
@@ -322,20 +320,14 @@ but preserves the response-level likelihood ratio, so the policy receives
 credit only for thresholds at which a candidate can improve the group maximum.
 
 This credit is deliberately leave-one-out rather than winner-take-all.  A
-winner indicator would give zero signal to a response that raises the chance of
-crossing a threshold without being the sampled winner, and would require an
-additional rating draw for every rollout.  The product over \(j\ne i\) measures
-how much room the other candidates leave at each threshold; the credit is thus
-both group-aware and response-specific.  Prefix and suffix products evaluate
-all \(N\) credits in \(O(N|\mathcal R|)\) time per prompt, which is the
-computational reason the exact construction is usable inside PPO.
-
-The scaling statement matters for the engineering use case.  A naive
-implementation would reevaluate a group maximum after perturbing each
-candidate, or enumerate rating tuples.  Threshold-wise prefix and suffix
-products instead share intermediate values across all candidates.  Exactness
-is therefore not only an analytical convenience: the deployment statistic and
-its training credit are computed by the same small tensor kernel.
+winner indicator misses a response that raises the chance of crossing a
+threshold without being the sampled winner; the product over \(j\ne i\) instead
+measures the room left by the other candidates at each threshold.  Prefix and
+suffix products evaluate all credits in \(O(N|\mathcal R|)\) time per prompt,
+sharing the same tensor kernel used for the deployment statistic.  Thus the
+construction is simultaneously group-aware, response-specific, and practical
+inside PPO, without enumerating rating tuples or introducing another rating
+sample.
 
 \begin{theorem}[Exact marginal policy credit]
 \label{thm:main-gradient}
@@ -349,13 +341,13 @@ Consequently, the response-level estimator is unbiased before PPO clipping.
 \end{theorem}
 
 \paragraph{Why the identity matters.}
-The score-function identity is the bridge from the group deployment target to a
-trainable response-level update.  It integrates out latent rating draws, while
-the autoregressive likelihood ratio distributes each candidate's group credit
-over its tokens.  The same cached categorical probabilities therefore feed the
-robust objective, all leave-one-out credits, and the disagreement diagnostic in
-\(O(N|\mathcal R|)\) time.  Exactness is asserted for this pre-clipping target;
-PPO then supplies the standard clipped surrogate and minibatch machinery.
+The identity is the bridge from the group deployment target to a trainable
+response-level update: latent rating draws are integrated out, while the
+autoregressive likelihood ratio distributes each candidate's threshold credit
+over its tokens.  The same cached categorical probabilities therefore define
+the robust target, every leave-one-out credit, and the disagreement diagnostic.
+PPO contributes the familiar clipped surrogate; the new object being optimized
+is the exact evaluator-induced credit in \cref{eq:robust-credit-closed}.
 
 \subsection{Constrained PPO update}
 \label{subsec:constrained-credit}
