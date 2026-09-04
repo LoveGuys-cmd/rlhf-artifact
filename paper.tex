@@ -116,6 +116,17 @@ the policy and optimizer state when a tentative batch exceeds the hard KL
 level.  The first piece changes what is optimized; the second makes the desired
 max--stability operating point explicit and measurable.
 
+The distinction between these pieces is important for interpreting the claim.
+The ordinal envelope is not another scalar reward shaping term: it changes the
+functional whose gradient is estimated.  The controller does not make the
+maximum objective easier to win; it makes the cost of obtaining a high maximum
+observable in the same run.  In particular, a method that raises the maximum
+only by moving far from the reference, lowering ordinary quality, or exploiting
+one evaluator should appear as a different point on the measured frontier.
+This lets us ask a falsifiable engineering question: can finite-budget maximum
+performance be improved without paying the full policy-drift cost of direct
+maximization?
+
 Our contributions are: (1) an exact finite-\(N\) robust objective for a bounded
 ordinal evaluator; (2) an exact Rao--Blackwellized marginal policy credit and
 its score-function identity; (3) a compact PPO realization with quality/KL
@@ -157,6 +168,15 @@ exactly, while a scalar quality model remains available as an independent
 check.  It is therefore different from treating a Gaussian or scalar reward
 as the deployment objective.
 
+There are two practical consequences.  First, the five categories are the
+annotation protocol itself, so the upper endpoint and the gaps between ratings
+are not chosen after inspecting policy outcomes.  Second, repeated labels make
+the conditional scale interpretable as disagreement in that protocol.  We use
+this signal to diagnose whether a policy is relying on unstable evaluator
+regions, but never add it to the optimization target.  The separation matters:
+using variance as a bonus would reward precisely the ambiguity that the
+calibration correction is intended to protect against.
+
 \subsection{Finite-budget objective}
 \label{subsec:ordinal-objective}
 
@@ -164,13 +184,22 @@ For candidate \(j\), write \(F_{\omega,j}(t)=\sum_{r=0}^{t}p_{\omega,r}(x,Y_j)\)
 The nominal expected maximum has the exact finite-support form
 \begin{equation}
 \label{eq:ordinal-max-closed}
-\boxed{\displaystyle h_N^{\rm nom}(x,Y_{1:N})=
-\sum_{t=1}^{4}\left[1-\prod_{j=1}^{N}F_{\omega,j}(t-1)\right].}
+h_N^{\rm nom}(x,Y_{1:N})=
+\sum_{t=1}^{4}\left[1-\prod_{j=1}^{N}F_{\omega,j}(t-1)\right].
 \end{equation}
 Thus rating noise is integrated out before policy optimization and no Gaussian
 or sampled-max approximation is introduced.  The probability of at least one
 rating-four response is a secondary diagnostic; the complete ordinal maximum
 is the primary estimand (Appendix~\ref{app:full-experiments}).
+
+The threshold form also clarifies what the policy is learning.  A response is
+valuable when it reduces the probability that every other candidate remains
+below a threshold, not merely when its mean score is large.  This gives a
+candidate credit that is sensitive to complementary upper-tail mass: two
+responses with the same mean can have different contributions if one changes
+the probability of crossing rating 3 or 4.  A scalar max@32 baseline cannot
+represent this distinction because it ranks candidates only by their collapsed
+means.
 
 \subsection{Calibration uncertainty}
 \label{subsec:robust-objective}
@@ -205,6 +234,14 @@ The one-sided envelope is the key robustness choice: it adds adverse low-rating
 mass, but never converts variance into reward.  Its radius is an explicit
 conservatism knob rather than a hidden tuning preference.
 
+The direction of the envelope follows the deployment objective.  For a maximum,
+increasing a candidate CDF decreases the chance of crossing every threshold;
+the upper-CDF envelope is therefore pessimistic in exactly the harmful
+direction.  A symmetric interval would spend robustness budget on the benign
+direction as well and would no longer have the same closed-form worst case.
+Because the radius is fixed from a disjoint calibration split, this protection
+cannot be tuned toward a favorable policy after training.
+
 \subsection{Constrained policy objective}
 \label{subsec:constrained-objective}
 
@@ -223,6 +260,13 @@ The floors are fixed from the reference policy before training, while
 \(\delta_{\rm hard}\) is an empirical rollback threshold.  The independent
 Quality RM and KL controller are safeguards against evaluator-specific
 overoptimization, not proofs that reward hacking is impossible.
+
+Each constraint addresses a different failure mode.  The nominal-mean floor
+prevents a tail optimizer from sacrificing the typical response; the independent
+Quality RM tests whether an improvement transfers beyond the training
+evaluator; and the KL budget limits how much behavior can change while these
+scores are being optimized.  We consequently report the maximum and drift as
+separate axes instead of combining them into an arbitrary weighted sum.
 
 \paragraph{Relation to existing objectives.}
 \method{} builds on PPO and prior inference-aware, pass@\(k\), max@\(k\), and
@@ -260,13 +304,22 @@ let \(\overline R_i\sim\overline p_i\) and
 credit is
 \begin{equation}
 \label{eq:robust-credit-closed}
-\boxed{\displaystyle q_i^{\rm rob}:=\mathbb E[(\overline R_i-
+q_i^{\rm rob}:=\mathbb E[(\overline R_i-
 \overline M_{-i})_+\mid x,Y_{1:N}]
-=\sum_{t=1}^{4}[1-\overline F_i(t-1)]\prod_{j\ne i}\overline F_j(t-1).}
+=\sum_{t=1}^{4}[1-\overline F_i(t-1)]\prod_{j\ne i}\overline F_j(t-1).
 \end{equation}
 This is the paper's central credit construction: it integrates out rating noise
 but preserves the response-level likelihood ratio, so the policy receives
 credit only for thresholds at which a candidate can improve the group maximum.
+
+This credit is deliberately leave-one-out rather than winner-take-all.  A
+winner indicator would give zero signal to a response that raises the chance of
+crossing a threshold without being the sampled winner, and would require an
+additional rating draw for every rollout.  The product over \(j\ne i\) measures
+how much room the other candidates leave at each threshold; the credit is thus
+both group-aware and response-specific.  Prefix and suffix products evaluate
+all \(N\) credits in \(O(N|\mathcal R|)\) time per prompt, which is the
+computational reason the exact construction is usable inside PPO.
 
 \begin{theorem}[Exact marginal policy credit]
 \label{thm:main-gradient}
@@ -284,6 +337,13 @@ the robust deployment objective to a trainable update.  It also avoids the
 high-variance choice of drawing a rating for every response and then assigning
 the sampled winner's credit.
 
+The identity is stated before clipping because it is a property of the target
+functional, not of a particular optimizer.  PPO clipping may introduce the
+usual controlled surrogate bias, but it does not change which response-level
+quantity is being estimated.  This separation lets the experiments attribute
+changes in the max--stability frontier to the proposed credit and controller,
+rather than to a hidden change in the deployment metric.
+
 \subsection{Constrained PPO update}
 \label{subsec:constrained-credit}
 
@@ -297,8 +357,14 @@ A_i=N[\widetilde q_i-b_\psi(x)].
 \end{equation}
 The factors \(1/N\) match the one-response constraints to the group objective;
 the prompt-only baseline preserves the score-function identity.  We use the
-standard clipped PPO surrogate and full-categorical token KL, with the lagged
-RMS scale and projected dual updates specified in Appendix~\ref{app:algorithm}.
+standard clipped PPO surrogate and full-categorical token KL.  Writing
+\(\rho_{i,h}=\pi_\theta(a_{i,h}\mid s_{i,h})/
+\pi_{\rm old}(a_{i,h}\mid s_{i,h})\), the update maximizes the standard
+per-token expression \(\min\{\rho_{i,h}A_i,
+\operatorname{clip}(\rho_{i,h},1-\epsilon_{\rm PPO},1+\epsilon_{\rm PPO})A_i\}\)
+averaged over candidates, minus \(\beta_k\widehat{\mathrm{KL}}\), and divides
+by the lagged RMS scale.  The full implementation, including projected dual
+updates, is specified in Appendix~\ref{app:algorithm}.
 
 Before a tentative step, \method{} snapshots all policy parameters and the
 complete optimizer state.  If the post-update KL on the same rollout states
@@ -306,6 +372,13 @@ exceeds \(\delta_{\rm hard}\), both snapshots are restored; baseline, dual,
 RMS, and controller states advance only after acceptance.  Thus rollback is an
 exact batch-level invariant, while the population KL constraint remains an
 empirical design target.
+
+The controller is intentionally conservative about state.  A rejected update
+must not train the prompt baseline, change either dual variable, or alter the
+normalization statistics; otherwise the next accepted step would depend on an
+update that the algorithm itself declared unsafe.  Snapshotting the optimizer
+state as well as the parameters is necessary for Adam-like optimizers, whose
+moment buffers otherwise retain the rejected step.
 
 \subsection{StableMax-PPO}
 \label{subsec:algorithm}
@@ -355,6 +428,11 @@ This theorem makes the claim deliberately conditional: calibration on prompt
 clusters is not a pointwise guarantee for every generated response.  The
 envelope is valuable because it converts that uncertainty into a measurable
 lower-tail protection term rather than an informal confidence statement.
+In particular, the theorem does not say that the frozen Moment RM is correct
+on every new response.  It says what follows if the declared envelope covers
+the relevant conditional CDFs, and quantifies the penalty when it misses.  This
+is the distinction between a calibration-robust objective and an unsupported
+claim of reward-model reliability.
 
 \subsection{Dependence on the calibration radius}
 \label{subsec:radius-analysis}
@@ -423,7 +501,7 @@ Best-of-32 (base) & 3.086 & [3.045, 3.125] & -- & --\\
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
+\begin{figure}[H]
 \centering
 \includegraphics[width=0.60\linewidth]{figures/max_kl_pareto.pdf}
 \caption{Robust maximum versus held-out KL. Filled markers are three-seed
@@ -435,6 +513,14 @@ Figure~\ref{fig:max-kl-pareto} makes the trade-off explicit: \method{} has
 lower held-out KL than Mean-PPO and GRPO while retaining a competitive robust
 maximum, whereas max-oriented comparators remain higher on that endpoint.
 Rollback frequency is an optimization diagnostic, not a population guarantee.
+
+The aggregate numbers quantify the operating point rather than a universal
+ranking.  Relative to Mean-PPO, \method{} increases robust maximum by 0.034
+while reducing held-out KL from 0.070 to 0.034 (a 51\% relative reduction).
+Relative to Scalar max-PPO, it gives up 0.059 robust-max points while using
+0.020 less KL.  These are the two axes that the method exposes; collapsing them
+into one weighted score would conceal the engineering trade-off the experiment
+is designed to measure.
 
 \subsection{Ablation and stability analysis}
 Removing the mean floor increases robust max to $3.508$ but raises held-out KL
