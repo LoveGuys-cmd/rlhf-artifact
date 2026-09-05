@@ -151,6 +151,17 @@ responses, proves Proposition~\ref{prop:radius-monotonicity}.  At
 equals the nominal CDF, so the exact infimum in
 Theorem~\ref{thm:main-max} equals \(J_N^{\mathrm{nom}}(\theta)\).
 
+\paragraph{Proof of Proposition~\ref{prop:variance}.}
+By the conditional credit definition in \cref{eq:robust-credit-closed},
+\(\mathbb E[(\overline R_i-\overline M_{-i})_+\mid x,Y_{1:N}]
+=q_i^{\rm rob}\) for every \(i\).  The score terms \(\phi_i\) are fixed under
+this conditioning, so linearity gives
+\(\mathbb E[G_{\rm samp}\mid x,Y_{1:N}]=G_{\rm RB}\).  For any fixed vector
+\(v\), the law of total variance yields
+\(\operatorname{Var}(v^\top G_{\rm samp})=
+\mathbb E[\operatorname{Var}(v^\top G_{\rm samp}\mid x,Y_{1:N})]
++\operatorname{Var}(v^\top G_{\rm RB})\), proving the stated inequality.
+
 \paragraph{Proof of Proposition~\ref{prop:rollback}.}
 Let \((\theta_0,\mathsf{Opt}_0)\) be the snapshot taken before a tentative
 update.  If the measured rollout-state KL exceeds \(\delta_{\rm hard}\), the

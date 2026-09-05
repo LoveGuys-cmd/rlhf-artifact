@@ -131,8 +131,9 @@ deployment functional and the credit that differentiates it.
 
 We make four contributions: (1) an exact finite-\(N\) robust objective for a
 bounded ordinal evaluator; (2) an exact Rao--Blackwellized marginal credit and
-score-function identity; (3) a compact PPO controller with quality/KL
-safeguards and state-complete rollback; and (4) an empirical characterization
+score-function identity, with a formal variance characterization; (3) a compact
+PPO controller with quality/KL safeguards and state-complete rollback; and (4) an
+empirical characterization
 of the max--stability frontier under shared evaluation and rollback controls.
 The complete diagnostic record, including unfavorable outcomes, delimits this
 frontier rather than defining a new success criterion.
@@ -443,6 +444,29 @@ knob: increasing it can only make the robust maximum more conservative, with a
 finite sensitivity bound.  This is distinct from tuning a KL coefficient,
 which changes the optimization path while leaving the target functional fixed.
 
+\subsection{Rao--Blackwellized variance reduction}
+\label{subsec:variance-analysis}
+Let \(\phi_i=\nabla_\theta\log\pi_\theta(Y_i\mid x)\).  Consider a hypothetical
+estimator that samples latent ratings from the robust envelope,
+\(G_{\rm samp}=\sum_i(\overline R_i-\overline M_{-i})_+\phi_i\), and the
+implemented credit estimator \(G_{\rm RB}=\sum_iq_i^{\rm rob}\phi_i\).  The
+former introduces evaluator-sampling noise that is unnecessary once the
+categorical probabilities are available.
+
+\begin{proposition}[Rao--Blackwell variance dominance]
+\label{prop:variance}
+Conditioned on \((x,Y_{1:N})\), \(G_{\rm RB}=\mathbb E[G_{\rm samp}\mid
+x,Y_{1:N}]\).  Consequently, for every vector \(v\),
+\(\operatorname{Var}(v^\top G_{\rm RB})\le
+\operatorname{Var}(v^\top G_{\rm samp})\).
+\end{proposition}
+
+The result isolates the benefit of the exact credit: it removes variance caused
+by drawing ordinal ratings while leaving rollout and policy-sampling variance
+unchanged.  This is why the implementation can use deterministic threshold
+products rather than an additional rating draw; the PPO update receives the
+conditional expectation of the same group credit, not a new reward surrogate.
+
 \subsection{Rollback invariant}
 \label{subsec:rollback-analysis}
 \begin{proposition}[Rollback correctness]
@@ -453,11 +477,12 @@ their pre-update values.  This is a batch-level invariant, not a population KL
 guarantee.
 \end{proposition}
 These results separate the method's roles: the envelope protects the target,
-the marginal identity makes it optimizable, and rollback controls the measured
-batch update.  The first two are model-conditional statements about the
-declared evaluator and independence model; the last is an implementation
-invariant.  We therefore treat calibration residuals, held-out KL, and
-rollback frequency as separate engineering diagnostics.
+the marginal identity makes it optimizable, Rao--Blackwellization removes
+evaluator-sampling noise, and rollback controls the measured batch update.  The
+first three are model-conditional statements about the declared evaluator and
+independence model; the last is an implementation invariant.  We therefore
+treat calibration residuals, held-out KL, and rollback frequency as separate
+engineering diagnostics.
 
 \section{Experiments}
 \label{sec:experiments}
