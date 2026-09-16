@@ -106,7 +106,7 @@ checks={
  "pilot_excluded":p.get("seeds")==[314,2718,1618] and 42 not in p.get("seeds",[]),
  "ten_methods":len(p.get("methods",[]))==10,
  "full_budget":p.get("steps")==300 and p.get("evaluation_prompts")==512,
- "finite_n":p.get("best_of_n")==32 and p.get("evaluation_candidate_counts")==[1,2,4,8,16,32],
+ "finite_n":p.get("best_of_n")==32 and p.get("evaluation_candidate_counts")==[32],
  "no_optional_stopping":p.get("statistics",{}).get("no_optional_stopping") is True,
  "all_gates_required":p.get("success_criteria",{}).get("claim_rule","").startswith("all gates"),
  "claim_limits":p.get("direct_human_preference_claim_permitted") is False and p.get("absence_of_reward_hacking_claim_permitted") is False,

@@ -272,19 +272,22 @@ def main() -> None:
         effect = finite(row, "paired_rank_biserial_vs_reference")
         if not 0.0 <= p_value <= 1.0 or not -1.0 <= effect <= 1.0:
             raise ValueError(f"invalid paired inferential statistic for {row['method']}")
-    n_scaling_path = eval_dir / "analysis" / "n_scaling_exact_ordinal.csv"
-    n_scaling = read_csv(n_scaling_path)
+    budget_diagnostic_path = eval_dir / "analysis" / "budget_diagnostic_exact_ordinal.csv"
+    budget_diagnostic = read_csv(budget_diagnostic_path)
+    expected_candidate_counts = tuple(
+        int(value) for value in protocol.get("evaluation_candidate_counts", [args.best_of_n])
+    )
     expected_scaling = {
         (method, str(candidate_count))
         for method in EVAL_METHODS
-        for candidate_count in (1, 2, 4, 8, 16, 32)
+        for candidate_count in expected_candidate_counts
     }
-    observed_scaling = {
-        (row["method"], row["candidate_count"]) for row in n_scaling
+    observed_budget = {
+        (row["method"], row["candidate_count"]) for row in budget_diagnostic
     }
-    if len(n_scaling) != len(expected_scaling) or observed_scaling != expected_scaling:
-        raise ValueError("nested-prefix N-sensitivity table is incomplete")
-    for row in n_scaling:
+    if len(budget_diagnostic) != len(expected_scaling) or observed_budget != expected_scaling:
+        raise ValueError("declared candidate-budget diagnostic is incomplete")
+    for row in budget_diagnostic:
         for key in (
             "robust_epsilon",
             "robust_ordinal_expected_max_mean",
@@ -374,7 +377,7 @@ def main() -> None:
         "paired_statistics_sha256": sha256(
             eval_dir / "policy_rm_eval" / "policy_ordinal_eval_by_method.csv"
         ),
-        "n_scaling_sha256": sha256(n_scaling_path),
+        "budget_diagnostic_sha256": sha256(budget_diagnostic_path),
         "qwen_calibration": qwen_calibration,
         "external_calibration": external_calibration,
         "reward_hacking_summary_sha256": sha256(hacking_path),

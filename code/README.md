@@ -21,6 +21,8 @@ artifacts used in the paper and can be inspected without model downloads.
 The aggregate report and per-seed summary tables are released; raw generated
 response JSONL, training logs, and checkpoint blobs are not redistributed.
 The terminal report records SHA-256 digests for those unreleased run files.
+The confirmatory protocol fixes the response budget at (N=32); no cross-budget
+sensitivity result is included.
 
 ## Environment and layout
 

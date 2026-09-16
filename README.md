@@ -12,13 +12,18 @@ portable and does not contain the original compute host paths.
 
 The confirmatory experiment uses seeds 314, 2718, and 1618. The aggregate
 terminal file reports all gates without modifying or hiding failed criteria.
+All confirmatory training and evaluation runs use (N=32); this artifact does
+not report a cross-budget sensitivity study.
 
-The frozen Moment RM is trained from HelpSteer2 repeated helpfulness ratings
-and preference pairs. Its predictive mean is used as a model-implied expected
-ordinal rating, and its conditional variance is reported as a model-based
-signal of annotator disagreement under that repeated-annotation protocol. The
-variance is not treated as a reward bonus or as a direct human-preference
-measurement for newly generated outputs.
+The frozen ordinal Moment RM is trained on HelpSteer2 repeated helpfulness
+ratings, with the decontaminated preference replay recorded in its training
+manifest. Its predictive mean is used as a model-implied expected ordinal
+rating, and its conditional variance is reported as a model-based signal of
+annotator disagreement under that repeated-annotation protocol. The
+independent scalar Quality RM is trained separately on preference pairs and is
+used only as a quality safeguard. Neither variance nor either model-based
+score is presented as a direct human-preference measurement for newly
+generated outputs.
 
 ## Build
 

@@ -38,16 +38,24 @@ independent proxy.  Reporting the vector preserves these distinctions and
 prevents a favorable endpoint from hiding a failure mode that the method was
 designed to measure.
 
+The frozen ordinal calibration report uses the simultaneous one-sided level
+\(\alpha_{\rm cal}=0.05\) and records
+\(\varepsilon_{\rm cal}=0.0468083\).  Its prompt-cluster count and hash are
+preserved in the machine-readable calibration report consumed by the training
+and verification scripts; the value is fixed before any policy run.
+
 \subsection{Models, data, and split discipline}
 \label{subsec:models-data}
 
 The policy is Qwen2.5-1.5B-Instruct
 \citep{qwen2024qwen25}.  The frozen Moment RM is a Qwen2.5-14B ordinal
-model trained from HelpSteer2 repeated helpfulness ratings and preference
-pairs \citep{wang2024helpsteer2}.  It exports
+model trained on HelpSteer2 repeated helpfulness ratings, with the
+decontaminated preference replay recorded in its training manifest
+\citep{wang2024helpsteer2}.  It exports
 \(p_{\omega,0:4}\) directly; exposing the category probabilities
 does not retrain or alter its accepted checkpoint.  An independently trained
-Qwen2.5-14B scalar Quality RM supplies \(Q_\eta\) and has no
+Qwen2.5-14B scalar Quality RM, fit separately on disjoint preference data,
+supplies \(Q_\eta\) and has no
 variance head.  Its frozen 4,096-pair confirmation accuracy is
 \(94.60\%\) with a Wilson lower 95\% bound of
 \(93.87\%\).
@@ -167,6 +175,50 @@ Best-of-32 (base) & 3.086 & [3.045, 3.125] & -- & --\\
 \end{tabular}
 \end{table}
 
+\begin{table}[t]
+\centering
+\scriptsize
+\caption{Per-seed primary endpoints at $N=32$. Each cell reports robust
+expected maximum / held-out KL on the same 512-prompt evaluation split. The KL
+values are the common-base-trajectory means from the held-out evaluator, matching
+the aggregate endpoint in Table~\ref{tab:full-aggregate}.}
+\label{tab:per-seed-primary}
+\begin{tabular}{lccc}
+\toprule
+Method & Seed 314 & Seed 2718 & Seed 1618 \\
+\midrule
+StableMax-PPO & 3.503 / 0.057 & 3.452 / 0.024 & 3.420 / 0.022 \\
+Mean-PPO & 3.369 / 0.070 & 3.523 / 0.074 & 3.381 / 0.066 \\
+GRPO & 3.563 / 0.094 & 3.547 / 0.097 & 3.553 / 0.091 \\
+Scalar max-PPO & 3.511 / 0.052 & 3.555 / 0.080 & 3.484 / 0.031 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The per-seed view makes the operating-point claim testable without relying on
+the aggregate interval alone: StableMax-PPO has lower held-out KL than Mean-PPO
+and GRPO in every seed, while Scalar max-PPO is lower in two of the three
+seeds.  Its robust maximum remains competitive across the same paired prompts.
+The robust values are the checked-in per-seed CSV records and the KL values are
+the held-out common-base means; all entries are rounded only for display, with
+no additional aggregation or seed selection performed here.
+
+\subsection{Ablation and stability analysis}
+\label{subsec:ablation-stability}
+
+The component rows in Table~\ref{tab:full-aggregate} isolate the operating
+point controls.  Removing the mean floor increases the aggregate robust maximum
+from \(3.458\) to \(3.508\), but also raises held-out KL from \(0.034\) to
+\(0.048\).  Removing the independent Quality floor gives
+\((3.467,0.048)\), while removing calibration gives
+\((3.421,0.028)\), in (robust maximum, KL) coordinates.  The three-seed
+intervals overlap and the per-seed effects are heterogeneous, so these are
+sensitivity comparisons rather than isolated causal effects.  Calibration
+removal changes the evaluator-defined target; floor removal changes the
+accepted-update trajectory.  The records therefore support a controlled
+frontier interpretation, not a claim that any safeguard is a universally
+improving reward term.
+
 \subsection{Evaluation endpoints}
 \label{subsec:evaluation-endpoints}
 
@@ -180,19 +232,13 @@ training objective.  Secondary model-based endpoints are
 \(p_{\omega,4}\), independent Quality score, reference KL,
 constraint residuals, accepted updates, and exact rollback counts.
 
-Sensitivity at \(N\in\{1,2,4,8,16,32\}\) uses nested
-prefixes of the same cached 32-response groups.  This preserves paired
-comparisons and avoids regenerating a favorable sample for each \(N\).
-The group-level maximum uses all candidates and does not require a selected
-response.  A deployment-style
-\(\arg\max_i\mu_\omega(x,Y_i)\) response is reported
-only as a secondary selector diagnostic.
-
-The nested-\(N\) evaluation is also a variance-control choice.  Reusing the
-same cached response prefixes makes changes in the endpoint attributable to
-the budget rather than to a new generation sample.  The held-out KL is computed
-on common base trajectories for the same reason, so a lower value reflects less
-measured policy motion under a paired protocol rather than an easier test set.
+The confirmatory evaluation fixes \(N=32\) for every method; no cross-budget
+sensitivity result is claimed.  The group-level maximum uses all 32 candidates
+and does not require a selected response.  A deployment-style
+\(\arg\max_i\mu_\omega(x,Y_i)\) response is reported only as a secondary
+selector diagnostic.  Held-out KL is computed on common base trajectories, so
+the paired comparison measures policy motion under the same prompt protocol
+rather than differences in test-set difficulty.
 
 For completeness, the top-category diagnostic used in the cached evaluation
 is
@@ -244,14 +290,27 @@ group delta; selected-response diagnostics additionally report length,
 character count, repeated-trigram rate, unique-word ratio, refusal behavior,
 and upper-tail strata.
 
-The aggregate tie-adjusted preference scores against Mean-PPO are 0.494
-([0.478, 0.510]) for Qwen and 0.502 ([0.458, 0.544]) for ArmoRM, where the
-intervals are three-seed hierarchical-bootstrap 95\% intervals.  Both scores
-are near parity and both intervals contain 0.5, so neither evaluator shows a
-clear quality-degradation signal relative to Mean-PPO.  A target-RM increase
-accompanied by proxy degradation would be evidence consistent with
-reward-model exploitation; these results do not show that signature, but the
-model-based design cannot establish its absence.
+\begin{table}[H]
+\caption{Independent generated-output proxy comparisons against Mean-PPO.
+Preference is tie-adjusted, so $0.5$ denotes parity; intervals are three-seed
+hierarchical-bootstrap 95\% intervals.}
+\label{tab:proxy-diagnostics}
+\centering\scriptsize
+\begin{tabular}{lcc}
+\toprule
+Evaluator & Preference & 95\% CI\\
+\midrule
+Qwen2.5-14B judge & 0.494 & [0.478, 0.510]\\
+ArmoRM-Llama3-8B-v0.1 & 0.502 & [0.458, 0.544]\\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Both scores are near parity and both intervals contain 0.5, so neither
+evaluator shows a clear quality-degradation signal relative to Mean-PPO.  A
+target-RM increase accompanied by proxy degradation would be evidence
+consistent with reward-model exploitation; these results do not show that
+signature, but the model-based design cannot establish its absence.
 
 RewardBench and Skywork chosen--rejected lockboxes contain previously collected
 human labels.  For each policy, length-normalized chosen--rejected policy

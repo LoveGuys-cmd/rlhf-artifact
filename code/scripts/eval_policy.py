@@ -164,7 +164,7 @@ def main() -> None:
         raise FileNotFoundError(table_path)
     source_rows = read_csv(table_path)
     summaries: dict[str, dict[str, Any]] = {}
-    n_scaling_rows: list[dict[str, Any]] = []
+    budget_rows: list[dict[str, Any]] = []
     for row in source_rows:
         method = row.get("method", "")
         name = row.get("responses_jsonl", "")
@@ -222,44 +222,46 @@ def main() -> None:
             "responses_jsonl_sha256": sha256(path),
             "reference_method": args.reference_method,
         }
-        for candidate_count in (1, 2, 4, 8, 16, 32):
-            if candidate_count > args.best_of_n:
-                continue
-            nested = [
+        # The publication protocol evaluates the declared budget only.  The
+        # evaluator remains parameterized by ``best_of_n`` for reuse, but this
+        # run must not manufacture an unreported cross-budget sensitivity
+        # result from cached prefixes.
+        for candidate_count in (args.best_of_n,):
+            budget_values = [
                 exact_group(group[:candidate_count], robust_epsilon)
                 for group in candidate_groups
             ]
-            nested_robust_max = [value[0] for value in nested]
-            nested_robust_top = [value[1] for value in nested]
-            nested_max = [value[2] for value in nested]
-            nested_top = [value[3] for value in nested]
+            budget_robust_max = [value[0] for value in budget_values]
+            budget_robust_top = [value[1] for value in budget_values]
+            budget_max = [value[2] for value in budget_values]
+            budget_top = [value[3] for value in budget_values]
             robust_max_low, robust_max_high = bootstrap(
-                nested_robust_max,
-                args.seed + 2500 + candidate_count + len(n_scaling_rows),
+                budget_robust_max,
+                args.seed + 2500 + candidate_count + len(budget_rows),
             )
             max_low, max_high = bootstrap(
-                nested_max, args.seed + 3000 + candidate_count + len(n_scaling_rows)
+                budget_max, args.seed + 3000 + candidate_count + len(budget_rows)
             )
             top_low, top_high = bootstrap(
-                nested_top, args.seed + 4000 + candidate_count + len(n_scaling_rows)
+                budget_top, args.seed + 4000 + candidate_count + len(budget_rows)
             )
-            n_scaling_rows.append(
+            budget_rows.append(
                 {
                     "method": method,
                     "candidate_count": candidate_count,
-                    "num_eval_prompts": len(nested),
+                    "num_eval_prompts": len(budget_values),
                     "robust_epsilon": robust_epsilon,
-                    "robust_ordinal_expected_max_mean": sum(nested_robust_max) / len(nested_robust_max),
+                    "robust_ordinal_expected_max_mean": sum(budget_robust_max) / len(budget_robust_max),
                     "robust_ordinal_expected_max_ci_low": robust_max_low,
                     "robust_ordinal_expected_max_ci_high": robust_max_high,
-                    "robust_probability_any_rating_4_mean": sum(nested_robust_top) / len(nested_robust_top),
-                    "ordinal_expected_max_mean": sum(nested_max) / len(nested_max),
+                    "robust_probability_any_rating_4_mean": sum(budget_robust_top) / len(budget_robust_top),
+                    "ordinal_expected_max_mean": sum(budget_max) / len(budget_max),
                     "ordinal_expected_max_ci_low": max_low,
                     "ordinal_expected_max_ci_high": max_high,
-                    "probability_any_rating_4_mean": sum(nested_top) / len(nested_top),
+                    "probability_any_rating_4_mean": sum(budget_top) / len(budget_top),
                     "probability_any_rating_4_ci_low": top_low,
                     "probability_any_rating_4_ci_high": top_high,
-                    "protocol": "nested_prefixes_of_same_cached_32_candidate_groups",
+                    "protocol": "fixed_candidate_groups",
                 }
             )
 
@@ -333,8 +335,8 @@ def main() -> None:
     output_dir = args.eval_dir / "policy_rm_eval"
     write_csv(output_dir / "policy_ordinal_eval_by_method.csv", rows, fields)
     write_csv(
-        args.eval_dir / "analysis" / "n_scaling_exact_ordinal.csv",
-        n_scaling_rows,
+        args.eval_dir / "analysis" / "budget_diagnostic_exact_ordinal.csv",
+        budget_rows,
         [
             "method",
             "candidate_count",

@@ -1,9 +1,10 @@
 \section{Implementation Details for \method}
 \label{app:algorithm}
 
-This appendix records implementation conventions for Algorithm~\ref{alg:stablemax};
-it is not a second algorithm. Model identifiers, seeds, and acceptance
-thresholds are specified in Appendix~\ref{app:full-experiments}.
+This appendix records implementation conventions for Algorithm~\ref{alg:stablemax},
+rather than a second algorithm. Appendix~\ref{app:full-experiments} specifies
+models, seeds, and thresholds; the machine-readable supplement provides
+aggregate and per-seed tables, terminal records, and SHA-256 hashes.
 
 For each prompt $x_b$, the implementation caches behavior-policy token log
 probabilities and response masks before evaluating any reward model. The five
@@ -35,3 +36,21 @@ a population KL bound.
 All floating-point reductions use deterministic tensor order where supported.
 The supplementary code contains tests for ordinal identities, credit
 reductions, finite metrics, protocol hashes, and rollback restoration.
+
+\begin{table}[H]
+\centering
+\scriptsize
+\caption{Implementation invariants checked by the artifact.}
+\label{tab:implementation-audit}
+\begin{tabular}{p{0.24\linewidth}p{0.46\linewidth}p{0.20\linewidth}}
+\toprule
+Component & Invariant & Test coverage \\
+\midrule
+Ordinal kernel & Five probabilities form a valid distribution; CDF boundaries and threshold identities hold. & \texttt{evrl\_ordinal} \\
+Credit kernel & Prefix/suffix products match the exact credit and the \(N=1\) reduction. & \texttt{evrl\_reduction} \\
+Rollback state & Policy parameters and optimizer buffers are restored together after rejection. & \texttt{publication\_v8} \\
+Controller state & Baseline, dual, KL, and RMS states advance only on accepted updates. & \texttt{publication\_v8} \\
+Protocol integrity & Finite metrics, content hashes, and verification records are checked before aggregation. & v8 verification \\
+\bottomrule
+\end{tabular}
+\end{table}

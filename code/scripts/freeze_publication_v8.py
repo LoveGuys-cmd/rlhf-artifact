@@ -164,7 +164,7 @@ def main() -> None:
             "target_kl": 0.02,
             "hard_kl": 0.04,
             "evaluation_prompts": 512,
-            "evaluation_candidate_counts": [1, 2, 4, 8, 16, 32],
+            "evaluation_candidate_counts": [32],
             "fresh_human_labels_on_generated_outputs": False,
             "direct_human_preference_claim_permitted": False,
             "absence_of_reward_hacking_claim_permitted": False,
