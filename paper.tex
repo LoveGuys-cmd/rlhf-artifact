@@ -1,6 +1,7 @@
 \documentclass{article}
 \usepackage{iclr2027_conference,times}
 \usepackage{natbib}
+\usepackage{microtype}
 \usepackage{booktabs}
 \usepackage{graphicx}
 \usepackage{amsmath,amsfonts,amssymb,amsthm}
@@ -8,6 +9,7 @@
 \SetAlFnt{\normalsize}
 \SetAlgoNlRelativeSize{0}
 \usepackage{xcolor}
+\usepackage{xurl}
 \usepackage{hyperref}
 \usepackage{cleveref}
 \usepackage{float}
@@ -329,8 +331,11 @@ M(\theta)\ge m_0,\ Q(\theta)\ge q_0,\ K(\theta)\le\delta,
 where
 \(M(\theta):=\mathbb E[\mu_\omega(x,Y)]\),
 \(Q(\theta):=\mathbb E[Q_\eta(x,Y)]\), and
-\(K(\theta):=\mathbb E_{x,Y\sim\pi_\theta}[\sum_{h=1}^{L(Y)}k_\theta(s_h)]/
-\mathbb E_{x,Y\sim\pi_\theta}[L(Y)]\), where \(L(Y)\ge1\) is response length and
+\[
+K(\theta):=\frac{\mathbb E_{x,Y\sim\pi_\theta}[\sum_{h=1}^{L(Y)}k_\theta(s_h)]}
+{\mathbb E_{x,Y\sim\pi_\theta}[L(Y)]},
+\]
+where \(L(Y)\ge1\) is response length and
 \(k_\theta(s)=\mathrm{KL}(\pi_\theta(\cdot\mid s)\Vert\pi_{\rm ref}(\cdot\mid s))\).
 Thus \(K\) is a token-weighted population KL; rollout and held-out versions
 use different state distributions (Appendix~\ref{app:algorithm}).
