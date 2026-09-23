@@ -8,9 +8,10 @@
 The experiments are designed to answer four predeclared questions:
 
 \begin{enumerate}
-\item Does StableMax-PPO improve the held-out robust
+\item Does StableMax-PPO attain a competitive held-out robust
 \(\mathbb E[\max_{j\le32}R_j]\) objective relative to
-mean optimization and a direct scalar max@32 policy gradient?
+mean optimization and a direct scalar max@32 policy gradient, while
+reducing held-out KL?
 \item Are gains preserved under the nominal exact ordinal maximum and the
 top-rating probability \(\Pr\{\exists j:R_j=4\}\)?
 \item Do nominal expected rating, independent Quality RM score, and
@@ -27,8 +28,8 @@ favorable protocol.
 
 The artifact verifier passed for seeds 314, 2718, and 1618.  The terminal
 record preserves every predeclared proxy, non-inferiority, safeguard, and KL
-outcome for auditability.  We interpret these fields as protocol diagnostics
-that delimit the measured max--stability frontier, not as a universal method
+outcome for auditability. We interpret these fields as protocol diagnostics
+that characterize the measured operating points, not as a universal method
 ranking or a proof that reward-model exploitation is absent.
 
 The diagnostic vector is read as a decision record rather than a single
@@ -38,11 +39,23 @@ independent proxy.  Reporting the vector preserves these distinctions and
 prevents a favorable endpoint from hiding a failure mode that the method was
 designed to measure.
 
-The frozen ordinal calibration report uses the simultaneous one-sided level
-\(\alpha_{\rm cal}=0.05\) and records
-\(\varepsilon_{\rm cal}=0.0468083\).  Its prompt-cluster count and hash are
-preserved in the machine-readable calibration report consumed by the training
-and verification scripts; the value is fixed before any policy run.
+The aggregate terminal record reports \texttt{scientific\_success=false}:
+the mean and independent-quality floors and the held-out KL comparisons against
+Mean-PPO and GRPO pass, but the declared robust-maximum gates and Qwen
+proxy gate do not all pass. In particular, the paired robust-maximum difference
+from Mean-PPO is 0.0339 with a 95\% interval of $[-0.0686,0.1304]$.
+The corresponding intervals against GRPO and Scalar max-PPO are
+$[-0.1336,-0.0609]$ and $[-0.1024,-0.0101]$. Passing artifact verification
+therefore establishes protocol consistency, not scientific success.
+
+The recorded runs fix \(\varepsilon_{\rm run}=0.04680826120821986\)
+using the earlier calibration rule with \(\alpha_{\rm cal}=0.05\).
+As explained in Appendix~\ref{app:theory}, this is a fixed ambiguity-set
+parameter, not a certified population calibration radius. We retain all
+recorded outcomes and do not substitute the corrected formula into completed
+runs. The released summaries record the radius; the original cluster-level
+calibration data and report remain external, so their sample count and split
+independence cannot be reconstructed from this release.
 
 \subsection{Models, data, and split discipline}
 \label{subsec:models-data}
@@ -124,7 +137,7 @@ with matched safeguards
 \(\mathrm{CE}_{\tau}=-\tau\log\sum_r p_{\omega,r}e^{-r/\tau}\),
 using \(\tau=1\).
 \item \textbf{Nominal Ordinal EV-PPO + Q}: exact
-\(J_{32}^{\mathrm{nom}}\) without the calibration ambiguity set.
+\(J_{32}^{\mathrm{nom}}\) without the CDF ambiguity set.
 \item \textbf{StableMax-PPO without mean floor}: ablates nominal-mean
 non-inferiority.
 \item \textbf{StableMax-PPO without Quality RM}: ablates the independent
@@ -144,18 +157,18 @@ separately.
 
 The comparator set is organized to separate three changes that are otherwise
 easy to conflate: the deployment functional (mean, scalar maximum, top-rating,
-or full ordinal maximum), the calibration correction, and the stabilizers.
+or full ordinal maximum), the CDF robustification, and the stabilizers.
 The nominal ordinal and Gaussian variants hold the policy optimizer fixed while
 changing the evaluator assumption; the no-floor variants hold the target fixed
-while removing one safeguard.  This is why the ablations support a causal
-interpretation of the observed frontier without claiming that any single
-component is universally beneficial.
+while removing one safeguard.  This is why the ablations support a controlled interpretation of the observed
+operating points without claiming that any single component is universally
+beneficial.
 
 \begin{table}[t]
 \caption{Complete aggregate table. Values are three-seed robust expected
 maximum, with 95\% confidence intervals, held-out KL, and rollback counts.}
 \label{tab:full-aggregate}
-\centering\scriptsize
+\centering\footnotesize
 \begin{tabular}{lcccc}
 \toprule
 Method & Robust max & 95\% CI & Held-out KL & Rollbacks/900\\
@@ -177,7 +190,7 @@ Best-of-32 (base) & 3.086 & [3.045, 3.125] & -- & --\\
 
 \begin{table}[t]
 \centering
-\scriptsize
+\footnotesize
 \caption{Per-seed primary endpoints at $N=32$. Each cell reports robust
 expected maximum / held-out KL on the same 512-prompt evaluation split. The KL
 values are the common-base-trajectory means from the held-out evaluator, matching
@@ -197,8 +210,8 @@ Scalar max-PPO & 3.511 / 0.052 & 3.555 / 0.080 & 3.484 / 0.031 \\
 
 The per-seed view makes the operating-point claim testable without relying on
 the aggregate interval alone: StableMax-PPO has lower held-out KL than Mean-PPO
-and GRPO in every seed, while Scalar max-PPO is lower in two of the three
-seeds.  Its robust maximum remains competitive across the same paired prompts.
+and GRPO in every seed, and lower KL than Scalar max-PPO in two of the three
+seeds (2718 and 1618).  Its robust maximum remains competitive across the same paired prompts.
 The robust values are the checked-in per-seed CSV records and the KL values are
 the held-out common-base means; all entries are rounded only for display, with
 no additional aggregation or seed selection performed here.
@@ -210,14 +223,13 @@ The component rows in Table~\ref{tab:full-aggregate} isolate the operating
 point controls.  Removing the mean floor increases the aggregate robust maximum
 from \(3.458\) to \(3.508\), but also raises held-out KL from \(0.034\) to
 \(0.048\).  Removing the independent Quality floor gives
-\((3.467,0.048)\), while removing calibration gives
+\((3.467,0.048)\), while removing CDF robustification gives
 \((3.421,0.028)\), in (robust maximum, KL) coordinates.  The three-seed
 intervals overlap and the per-seed effects are heterogeneous, so these are
-sensitivity comparisons rather than isolated causal effects.  Calibration
+sensitivity comparisons rather than isolated causal effects. CDF-envelope
 removal changes the evaluator-defined target; floor removal changes the
-accepted-update trajectory.  The records therefore support a controlled
-frontier interpretation, not a claim that any safeguard is a universally
-improving reward term.
+accepted-update trajectory.  The records therefore support a controlled operating-point interpretation,
+not a claim that any safeguard is a universally improving reward term.
 
 \subsection{Evaluation endpoints}
 \label{subsec:evaluation-endpoints}
@@ -255,20 +267,37 @@ estimand; the complete ordinal maximum remains the reported objective.
 \subsection{Statistical analysis and success criteria}
 \label{subsec:statistical-analysis}
 
-All seeds are reported separately.  Aggregate uncertainty is estimated by a
-hierarchical bootstrap that resamples seeds and prompts.  Paired prompt-level
-contrasts additionally report one-sided sign-flip randomization tests and
-matched-pairs rank-biserial effect sizes.  The primary superiority gates require the lower endpoint of a two-sided
-95\% hierarchical-bootstrap interval for the StableMax-PPO improvement in
-$h_{32}^{\mathrm{rob}}$ to exceed zero against Mean-PPO, GRPO + Q,
-and Scalar Max@32-PPO.
+All seeds are reported separately. The frozen analysis uses 10,000 draws of
+a seed-then-prompt percentile bootstrap: sample three seeds with replacement,
+then independently resample 512 prompt indices within each sampled seed.
+Paired method contrasts use within-seed prompt differences before resampling.
+The resulting 2.5th and 97.5th percentiles are the reported intervals. Because
+prompts are shared across seeds but resampled independently within them, these
+are intervals under the frozen nested-resampling convention, not an exact
+crossed seed--prompt population confidence guarantee. Three seeds further
+limit precision of inference over training randomness.
 
-Safeguard success requires the corresponding interval lower endpoints for
-StableMax-PPO's candidate nominal mean and independent Quality mean to remain at
-or above \(m_0\) and \(q_0\).  A point estimate alone cannot
-satisfy either floor.  The complete scientific-success decision requires all
-predeclared superiority, floor, and generated-output proxy gates; improvement
-under the target RM alone is insufficient.
+The recorded success gates require the robust-max difference interval's lower
+endpoint to be \(>0\) against Scalar max-PPO, \(\ge-0.05\) against
+Mean-PPO, and \(\ge-0.10\) against GRPO. They also require the held-out-KL
+difference interval's upper endpoint to be \(<0\) against both Mean-PPO and
+GRPO. The candidate nominal-mean and Quality-score interval lower endpoints
+must reach their respective frozen floors. Each generated-output proxy must
+have tie-adjusted preference mean \(\ge0.50\) and interval lower endpoint
+\(\ge0.45\). All nine gates must pass jointly; the recorded decision is false.
+These are the unchanged protocol criteria, not thresholds chosen after seeing
+the results. We make no superiority claim from the positive Mean-PPO
+robust-max point estimate.
+
+Additional diagnostics average paired differences over seeds within each
+prompt before sign-flip randomization. Such tests require sign-exchangeability
+under their null. The historical output key \texttt{paired\_rank\_biserial}
+actually records the sign-based effect \((n_+-n_-)/(n_++n_-)\), excluding
+zero differences (defined as zero if all differences vanish); it does not
+weight signed ranks. We retain that field name for record compatibility and
+interpret it as a sign-dominance statistic. Individual intervals and auxiliary
+tests are descriptive and are not simultaneous confidence guarantees across
+all methods or endpoints.
 
 \subsection{Anti-exploitation and human-grounded diagnostics}
 \label{subsec:anti-exploitation}
@@ -295,7 +324,7 @@ and upper-tail strata.
 Preference is tie-adjusted, so $0.5$ denotes parity; intervals are three-seed
 hierarchical-bootstrap 95\% intervals.}
 \label{tab:proxy-diagnostics}
-\centering\scriptsize
+\centering\footnotesize
 \begin{tabular}{lcc}
 \toprule
 Evaluator & Preference & 95\% CI\\
@@ -306,8 +335,9 @@ ArmoRM-Llama3-8B-v0.1 & 0.502 & [0.458, 0.544]\\
 \end{tabular}
 \end{table}
 
-Both scores are near parity and both intervals contain 0.5, so neither
-evaluator shows a clear quality-degradation signal relative to Mean-PPO.  A
+Both point estimates are near parity and both intervals contain 0.5. These
+intervals establish neither a quality difference nor equivalence to Mean-PPO;
+in particular, the Qwen proxy does not pass its declared gate.  A
 target-RM increase accompanied by proxy degradation would be evidence
 consistent with reward-model exploitation; these results do not show that
 signature, but the model-based design cannot establish its absence.

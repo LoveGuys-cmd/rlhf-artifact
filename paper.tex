@@ -55,7 +55,7 @@
 \setlength{\parindent}{0cm}
 \addtocontents{toc}{\protect\setcounter{tocdepth}{0}}
 
-\title{StableMax-PPO: Finite-Budget RLHF with a Max--Stability Trade-off}
+\title{StableMax-PPO: Best-of-\(N\) RLHF with\protect\\Ordinal Reward Distributions}
 \author{}
 \date{}
 
@@ -63,49 +63,50 @@
 \maketitle
 
 \begin{abstract}
-Reinforcement learning from human feedback (RLHF) has substantially
-improved language-model post-training, but many RLHF pipelines optimize
-the expected reward of a single response even when deployment selects
-the best from a finite set. Recent Best-of-\(N\)-aware methods reduce
-this mismatch, yet many operate on scalar rewards or nominal reward-model
-distributions, discarding the ordinal threshold structure that determines
-the maximum and leaving upper-tail optimization sensitive to calibration
-error, degradation of typical responses, and policy drift. To address
-these limitations, we introduce \textbf{\method{}}, which directly trains
-the policy for the same finite-budget maximum used at deployment while
-retaining the predictive distribution of a frozen ordinal reward model
-trained from repeated human ratings. A one-sided envelope on its CDFs
-yields the exact worst-case Best-of-\(N\) objective over the resulting
-ambiguity set, and the same threshold construction provides an exact
-response-level credit for PPO optimization. Nominal-mean and independent-quality floors guard against degradation
-of typical responses and target-evaluator over-optimization, while
-reference-policy KL control and state-complete rollback constrain
-excessive policy updates. Across
-three seeds, \textbf{\method{}} retains competitive finite-budget maximum
-performance while reducing held-out drift relative to baselines,
-characterizing a calibration-robust, lower-drift operating point on the
-max--stability frontier.
+Many language-model systems use Best-of-\(N\) sampling at deployment,
+while standard RLHF optimizes the expected reward of a single response.
+Recent finite-budget objectives partly close this gap, but typically
+reduce each response to a scalar reward and discard the per-rating-level
+probabilities that determine the maximum. This matters because two responses with the same predicted mean
+can have different probabilities of receiving a high rating, and thus
+different expected latent rating maxima within a candidate group. We introduce \textbf{\method{}}, which directly optimizes the finite-budget
+expected rating maximum using the predictive distribution of a frozen ordinal reward model
+trained from human ratings. Its variance is retained as a model-based diagnostic of annotator disagreement,
+not an optimization bonus. A one-sided CDF ambiguity set with a fixed
+radius yields the exact worst-case expected latent rating maximum and an exact
+response-level policy credit for PPO. To limit degradation in typical responses and policy drift, we impose lower
+bounds on the predicted mean rating and on an independently trained quality
+score, and regulate KL divergence from the reference policy with rollback. Across three seeds at
+\(N=32\), \textbf{\method{}} achieves competitive robust maximum
+performance with lower held-out KL than Mean-PPO, GRPO, and scalar
+max-PPO baselines. The max-oriented baselines achieve higher robust maxima;
+our results establish a lower-drift operating point under the frozen evaluators,
+not uniform improvement across endpoints.
 \end{abstract}
 \section{Introduction}
 \label{sec:introduction}
 
-Many language-model systems generate several responses and return, rerank, or
-inspect the best candidate, while common RLHF objectives optimize the expected
-score of one response.  The distinction matters because a mean improvement need
-not increase the chance of obtaining a strong candidate within a fixed budget.
-Mean-PPO and GRPO remain effective general-purpose post-training methods
-\citep{shao2024deepseekmath,guo2025deepseekr1}, and recent max@\(k\),
-Best-of-\(N\), and inference-aware policy-gradient methods better align training
-with finite-budget deployment
+Many language-model systems generate multiple responses and then return, rerank,
+or inspect the best candidate \citep{nakano2021webgpt,cobbe2021training},
+whereas standard RLHF objectives optimize the expected score of a single
+response \citep{christiano2017deep,stiennon2020learning,ouyang2022training}. This mismatch is consequential: a higher
+mean score need not increase the probability that a fixed generation budget
+yields a highly rated response. Mean-PPO and GRPO remain effective
+general-purpose post-training methods
+\citep{shao2024deepseekmath,guo2025deepseekr1}, and recent
+$\mathrm{max}@k$, Best-of-\(N\), and inference-aware policy-gradient methods
+better align training with finite-budget deployment
 \citep{chow2025inference,tang2025inference,walder2025pkpo,
-bagirov2025best,li2026posttraining,poiani2026maxk}.  We do not claim the first
-finite-budget objective.  The unresolved setting is an imperfect ordinal
-evaluator: collapsing its output to a scalar discards the threshold
-probabilities that determine the maximum, while optimizing a nominal upper tail
-can amplify calibration error, sacrifice typical quality, or move the policy
-far from its reference.  Our question is therefore how to optimize the same
-finite-budget statistic used at deployment while preserving the evaluator's
-ordinal information and keeping quality and drift independently measurable.
+bagirov2025best,li2026posttraining,poiani2026maxk}. In the scalar-reward formulations of these objectives, each response is
+represented by a single score,
+discarding the per-rating-level probabilities that determine the maximum. This
+loss is not innocuous: two responses with the same predicted mean can have
+different probabilities of receiving a high rating, and thus different
+expected latent rating maxima. Moreover, optimizing a nominal upper tail can amplify
+calibration error, degrade typical responses, or drive the policy far from its
+reference \citep{gao2023scaling,kirk2024understanding}. We therefore study a
+finite-budget expected rating maximum that retains the evaluator's ordinal
+information, with quality and policy drift reported separately.
 
 We introduce \method{}, an evaluator-to-optimizer construction for this
 setting.  A frozen ordinal Moment RM, trained from repeated HelpSteer2
@@ -114,50 +115,131 @@ disagreement as a predictive distribution over \(\{0,1,2,3,4\}\).  The
 distribution retains every threshold event used by the maximum; its mean
 provides an ordinary model-implied quality measure, while its variance is kept
 as a disagreement diagnostic rather than a reward bonus.  We place a one-sided
-calibration envelope on the CDFs in the direction adverse to upper-tail
+fixed envelope on the CDFs in the direction adverse to upper-tail
 performance.  The resulting product distribution exactly attains the
 worst-case Best-of-\(N\) value over the declared ambiguity set, and the same
 threshold products yield an exact response-level marginal credit for policy
 optimization.
 
-This shared construction is the main technical distinction: calibration
-robustness changes both the deployment-level group objective and the credit that
+This shared construction is the main technical distinction: CDF
+robustification changes both the deployment-level group objective and the credit that
 differentiates it, rather than entering as an auxiliary penalty.  PPO is only
 the optimization carrier.  A nominal-mean floor and a separately trained,
-frozen Quality RM from preference pairs guard typical responses and transfer
-beyond the target evaluator; reference-policy KL
+frozen Quality RM from preference pairs constrain typical model-scored
+quality beyond the target evaluator; reference-policy KL
 regularization and state-complete rollback control the accepted update
 trajectory.  The robust maximum, both quality measurements, and policy drift
-consequently remain separate quantities, making the max--stability trade-off
-observable rather than hiding it in a weighted reward.
+consequently remain separate quantities, making the max--stability
+operating point observable rather than reporting a single composite score.
 
-The central contribution is therefore an evaluator-to-gradient contract, rather
-than a new PPO optimizer in isolation or an additive list of stabilization
-heuristics.  Existing finite-budget objectives can be optimized with a scalar
-reward, but that scalarization happens before the group interaction is
-differentiated.  Here the adverse CDF envelope first defines the deployment
-functional and then induces the response-level credit used by PPO.  Calibration
-robustness consequently changes both what counts as a successful group and
-which response receives credit, while the quality and KL mechanisms remain
-separately auditable.
-
-Our contributions are:
+Our contributions connect the distributional information lost by scalar scoring
+to an exact objective, an implementable credit, and a controlled empirical test:
 \begin{itemize}
-\item \textbf{A calibration-robust ordinal objective.}  We derive the exact
-finite-\(N\) worst-case maximum over a one-sided product ambiguity set and
-quantify its dependence on envelope coverage and radius.
-\item \textbf{An exact group-to-response credit.}  The same threshold
-construction gives a Rao--Blackwellized marginal credit whose score-function
-expectation is the gradient of the robust group objective and whose credits are
-computable in \(O(N|\mathcal R|)\) time.
-\item \textbf{A controlled optimization realization.}  We combine this credit
-with PPO while keeping nominal mean, independently evaluated quality, KL, and
-rollback as distinct safeguards rather than redefining the robust reward.
-\item \textbf{An empirical characterization of the operating frontier.}  At
-\(N=32\) across three seeds, \method{} attains a competitive robust maximum with
-lower held-out drift than Mean-PPO, GRPO, and Scalar max-PPO; max-oriented
-comparators attain higher maxima at greater drift.
+\item \textbf{An ordinal interface for finite-budget alignment.}
+We retain all five rating probabilities of a frozen reward model trained on
+repeated human annotations. This exposes the threshold events needed by the
+expected maximum; the mean measures typical model-scored quality and the
+variance remains a disagreement diagnostic. The contribution is the use of
+this interface for policy optimization, not a new ordinal regression model.
+
+\item \textbf{An exact robust objective and policy credit.}
+We derive the worst-case expected maximum over a one-sided product CDF
+ambiguity set and its closed-form leave-one-out credit
+(\Cref{thm:main-max,thm:main-gradient}). The score-function estimator is
+unbiased before PPO clipping, and a lower bound on the true conditional maximum
+holds when the envelope covers the conditional rating distributions
+(\Cref{thm:coverage-summary}). Both value and credit are computed in
+\(O(N|\mathcal R|)\) time without sampling latent ratings.
+
+\item \textbf{A constrained PPO realization with explicit safeguards.}
+We combine this credit with nominal-mean and independently trained quality
+floors, reference-policy KL control, and state-complete rollback. The floors
+enter through adaptive dual weights rather than fixed reward bonuses;
+rollback restores rejected policy and optimizer updates and leaves controller
+state unchanged. These mechanisms make the target and its safeguards
+separately inspectable without asserting a population KL guarantee.
+
+\item \textbf{A three-seed characterization at a fixed response budget.}
+At \(N=32\), \method{} attains a robust maximum of 3.458 with held-out KL
+of 0.034, compared with 3.424 and 0.070 for Mean-PPO. GRPO and scalar
+max-PPO attain higher maxima at higher drift. Matched comparators, component
+ablations, and independent model-based diagnostics characterize this operating
+point; they do not establish a complete Pareto frontier or superiority on
+fresh human judgments.
 \end{itemize}
+
+\section{Related Work}
+\label{sec:related}
+
+\textbf{Post-training and inference-time selection.}
+Learning rewards from preferences underlies RLHF
+\citep{christiano2017deep,stiennon2020learning,ouyang2022training}; DPO
+reparameterizes a KL-regularized preference objective without online policy
+optimization \citep{rafailov2023direct}. GRPO uses within-group reward
+normalization for post-training \citep{shao2024deepseekmath,guo2025deepseekr1}.
+At inference time, verifier-guided selection, answer aggregation, and adaptive
+compute allocation exploit multiple candidate responses
+\citep{cobbe2021training,wang2023selfconsistency,snell2025scaling}.
+These procedures differ in what constitutes a successful group. Our setting
+fixes the response budget and targets its expected ordinal rating maximum;
+it does not optimize majority voting or allocate compute across prompts.
+
+\textbf{Finite-budget training objectives.}
+Best-of-\(N\)-aware fine-tuning \citep{chow2025inference}, generic
+inference-time objectives \citep{tang2025inference}, pass@\(k\) policy
+gradients \citep{walder2025pkpo}, and max@\(k\) optimization
+\citep{bagirov2025best} align training with multi-candidate evaluation.
+InfAlign derives reward transformations for inference procedures
+\citep{balashankar2024infalign}, while Compute Aligned Training derives
+procedure-dependent losses \citep{ousherovitch2026compute}.
+\citet{li2026posttraining} address a different limitation: they extrapolate
+scalar reward tails when training uses fewer rollouts than deployment.
+\citet{poiani2026maxk} study policy structure and sample complexity for
+max@\(k\) in finite-horizon RL. Our contribution concerns the distribution
+\emph{within each response}: conditional ordinal rating probabilities define
+an exact robust group value and its credit at a matched budget. It neither
+replaces these broader inference-aware frameworks nor claims to solve the
+training--deployment budget mismatch.
+
+\textbf{Ordinal, probabilistic, and distributional rewards.}
+Ordinal regression provides ordered-category models
+\citep{mccullagh1980regression}, while HelpSteer2 supplies graded human
+annotations for reward modeling \citep{wang2024helpsteer2}. Uncertainty-aware
+and probabilistic reward models represent information beyond a point score
+\citep{lou2024uncertainty,sun2025purm}; predictive variation and epistemic
+uncertainty are distinct concepts \citep{kendall2017uncertainties}.
+Proper scoring rules and calibration assess the predictive probabilities
+\citep{gneiting2007strictly,guo2017calibration}. Distributional RL instead
+models return distributions over trajectories
+\citep{bellemare2017distributional,dabney2018distributional}.
+Here the frozen distribution is over annotations conditional on a completed
+response. Its CDF enters a finite-budget policy objective, while its variance
+is neither an epistemic confidence measure nor an exploration bonus.
+
+\textbf{Robustness and reward-model overoptimization.}
+Robust MDP formulations optimize against uncertainty sets over transition
+models \citep{iyengar2005robust,nilim2005robust}. We use a product ambiguity
+set over conditional rating CDFs; its exact solution relies on stochastic
+ordering and conditional independence rather than dynamic programming.
+Reward-model overoptimization motivates safeguards against optimizing a proxy
+beyond its reliable range \citep{gao2023scaling}, and reward-model ensembles
+can mitigate this problem \citep{coste2024reward}. Our one-sided CDF envelope
+modifies the objective and credit together, but its true-rating lower bound
+requires conditional coverage. Neither calibration on held-out prompt
+clusters nor agreement between model-based evaluators establishes that
+coverage for every generated response.
+
+\textbf{Diversity and constrained policy optimization.}
+RLHF can reduce output diversity \citep{kirk2024understanding}; deliberate
+representation-based exploration can improve multi-sample coverage
+\citep{tuyls2026representation}. Our credit rewards incremental rating-threshold
+coverage, without adding a semantic-diversity or variance bonus.
+PPO and trust-region methods provide policy-update mechanisms
+\citep{schulman2017proximal,schulman2015trust}, and constrained policy
+optimization separates reward objectives from constraints
+\citep{achiam2017constrained}. We use adaptive quality-floor penalties and
+empirical KL control with rollback. This implementation does not inherit a
+population feasibility or monotonic-improvement guarantee from those methods.
 
 \section{Problem Setup}
 \label{sec:problem-setup}
@@ -170,9 +252,8 @@ For \(x\sim\mathcal D\), responses factor as
 \(\pi_\theta(Y\mid x)=\prod_h\pi_\theta(a_h\mid x,a_{<h})\), and a rollout
 contains \(Y_{1:N}\overset{\mathrm{iid}}{\sim}\pi_\theta(\cdot\mid x)\).  We
 assume (A1) conditional independence of rating outcomes across candidates, (A2)
-frozen evaluators, and (A3) the differentiability and likelihood-ratio
-regularity needed below.  Thus changes in the measured frontier are attributable
-to the policy and controller rather than to a moving evaluator.  Each response
+frozen evaluators and radius, and (A3) differentiable policies with common
+support and integrable scores permitting differentiation under expectation. Each response
 receives one terminal evaluation; the group statistic is formed before any
 response-level credit is assigned.
 
@@ -180,7 +261,7 @@ Assumption (A1) concerns annotation outcomes conditional on completed
 responses; it does not assert token independence.  It is what converts each
 threshold event for the maximum into a product of candidate CDFs.  Assumption
 (A2) keeps both evaluators and the reference policy fixed, so the measured
-frontier moves only through the policy and controller.  Assumption (A3) enables
+operating point changes only through the policy and controller.  Assumption (A3) enables
 the likelihood-ratio differentiation in Theorem~\ref{thm:main-gradient}.
 Correlated evaluator errors are therefore outside the product model rather than
 an effect absorbed by the optimizer.
@@ -194,10 +275,8 @@ simplex on these five levels.  Its mean
 model-based disagreement diagnostic; the independent scalar \(Q_\eta(x,y)\) is a
 separate quality check.  The category endpoints are fixed by the training data;
 the ordinal-probit parameterization is given in Appendix~\ref{app:theory}.
-Thus the five levels are part of the evaluator interface rather than thresholds
-selected after observing policy outcomes.  The mean, categorical vector, and
-variance have distinct roles: only the vector determines the finite-budget
-target, and the variance remains diagnostic rather than becoming a reward bonus.
+The five levels are fixed by the evaluator interface, not selected after
+observing policy outcomes.
 
 For candidate \(j\), let \(F_{\omega,j}(t)=\sum_{r=0}^{t}p_{\omega,r}(x,Y_j)\).
 Under (A1), the nominal finite-support identity is
@@ -205,64 +284,73 @@ Under (A1), the nominal finite-support identity is
 \(J_N^{\rm nom}(\theta)=\mathbb E[h_N^{\rm nom}]\).  Its threshold products
 show why the full ordinal vector matters: a candidate is useful when the other
 responses leave a threshold uncovered, which a scalar maximum cannot represent
-before credit assignment.  The identity integrates out rating noise exactly;
-the top-rating event is only one of the four threshold terms.  Two responses
-with the same predictive mean can therefore have different group value because
-their mass is distributed differently across thresholds.
+from response means alone. The identity integrates out rating noise exactly;
+the top-rating event is only one of the four threshold terms.
 
-We estimate \(\varepsilon_{\rm cal}\) on independent prompt clusters before
-training (Appendix~\ref{app:theory}) and use the one-sided envelope
-\(\overline F_j(t)=\min\{1,F_{\omega,j}(t)+\varepsilon_{\rm cal}\}\), with
+This objective measures the expected best latent rating in a candidate group.
+It is not the expected rating of a response selected by its predicted mean:
+the maximum is taken over rating outcomes before integrating them out.
+We evaluate this group functional directly; mean-based response selection is
+reported only as a secondary diagnostic
+(Appendix~\ref{subsec:evaluation-endpoints}).
+
+Fix a radius \(\varepsilon\in[0,1]\) before policy training and use the
+one-sided envelope
+\(\overline F_j(t)=\min\{1,F_{\omega,j}(t)+\varepsilon\}\), with
 \(\overline p_{j,r}=\overline F_j(r)-\overline F_j(r-1)\).  Define
-\(\mathfrak U_{\varepsilon_{\rm cal}}(p_{\omega,1:N})
+\(\mathfrak U_{\varepsilon}(p_{\omega,1:N})
 :=\prod_{j=1}^{N}\{q_j\in\Delta(\mathcal R):
 F_{q_j}(t)\le\overline F_j(t),\ t=0,\ldots,3\}\).  Set
 \(\overline F_j(-1)=0,\overline F_j(4)=1\).  Increasing a CDF is adverse to an
 upper-tail maximum, so the envelope changes the deployment target and its
-policy credit together; it is not an auxiliary reward bonus.  The radius is
-estimated on a split disjoint from policy training, so it fixes a declared
-conservatism level before policy outcomes are observed rather than tuning a
-reward after the fact.
+policy credit together; it is not an auxiliary reward bonus. The radius
+fixed in the recorded runs is \(\varepsilon_{\rm run}=0.0468083\).
+Those results characterize this fixed ambiguity set; they do not validate a
+population calibration guarantee. Appendix~\ref{app:theory} gives the corrected
+calibration bound and distinguishes it from the recorded radius.
 
 \subsection{Robust constrained objective}
 The robust group value is
-\(h_N^{\rm rob}:=\inf_{q_{1:N}\in\mathfrak U_{\varepsilon_{\rm cal}}(p_{\omega,1:N})}
-\mathbb E_q[\max_jR_j]=\sum_{t=1}^{4}[1-\prod_{j=1}^{N}\overline F_j(t-1)]\).
-Our single optimization objective is
+\begin{equation}
+\label{eq:robust-group-value}
+h_N^{\rm rob}
+:=\inf_{q_{1:N}\in\mathfrak U_{\varepsilon}(p_{\omega,1:N})}
+\mathbb E_q[\max_jR_j]
+=\sum_{t=1}^{4}\Bigl[1-\prod_{j=1}^{N}\overline F_j(t-1)\Bigr].
+\end{equation}
+Our optimization objective is then
 \begin{equation}
 \label{eq:robust-max-closed}
-\begin{aligned}
-\max_{\theta}\quad J_N^{\rm rob}(\theta)
-&:=\mathbb E[h_N^{\rm rob}(x,Y_{1:N})],\\[-1pt]
-\text{s.t.}\quad &M(\theta):=\mathbb E[\mu_\omega(x,Y)]\ge m_0,\quad
-Q(\theta):=\mathbb E[Q_\eta(x,Y)]\ge q_0,\\[-1pt]
-&K(\theta):=\mathbb E_x[\mathrm{KL}(\pi_\theta\Vert\pi_{\rm ref})]\le\delta .
-\end{aligned}
+\max_{\theta}\ J_N^{\rm rob}(\theta)
+:=\mathbb E[h_N^{\rm rob}(x,Y_{1:N})]
+\quad\text{s.t.}\quad
+M(\theta)\ge m_0,\ Q(\theta)\ge q_0,\ K(\theta)\le\delta,
 \end{equation}
+where
+\(M(\theta):=\mathbb E[\mu_\omega(x,Y)]\),
+\(Q(\theta):=\mathbb E[Q_\eta(x,Y)]\), and
+\(K(\theta):=\mathbb E_{x,Y\sim\pi_\theta}[\sum_{h=1}^{L(Y)}k_\theta(s_h)]/
+\mathbb E_{x,Y\sim\pi_\theta}[L(Y)]\), where \(L(Y)\ge1\) is response length and
+\(k_\theta(s)=\mathrm{KL}(\pi_\theta(\cdot\mid s)\Vert\pi_{\rm ref}(\cdot\mid s))\).
+Thus \(K\) is a token-weighted population KL; rollout and held-out versions
+use different state distributions (Appendix~\ref{app:algorithm}).
 The floors \(m_0,q_0\) are fixed from the reference policy and keep target-RM
 and independent quality visible, while \(K\) measures policy motion separately.
 In PPO, the floors enter through dual credits, the KL term through the
 surrogate, and the distinct threshold \(\delta_{\rm hard}\) through batch
 rollback; the measured token KL is an acceptance statistic, not a population
-trust-region guarantee.  This separation makes a change in the reported
-maximum attributable to the robust target distinguishable from a change caused
-by a quality multiplier or by the update-acceptance rule.  In particular, the
-independent Quality RM is a transfer check trained from preference pairs, not
-another term that can be traded against the robust maximum; the multipliers only
-price violations of the declared floors.
+trust-region guarantee.  The Quality RM is independently trained but participates in policy optimization
+through its floor. It is therefore a safeguard evaluator, not an untouched
+external test; the generated-output proxy evaluators provide additional
+diagnostics (Appendix~\ref{subsec:anti-exploitation}).
 
 \section{Method}
 \label{sec:method}
 
-The method separates the deployment target from its stabilizers.  The target
-is the robust ordinal maximum; the stabilizers control typical quality and
-policy motion.  This separation makes the max--stability trade-off visible
-instead of hiding it in a scalar reward weight.  The construction has two
-steps: first, the evaluator distribution is transformed into a worst-case
-finite-budget functional; second, that functional is differentiated into
-response-level credits and carried by PPO.  The theorems below establish these
-steps before the implementation details introduce clipping, dual prices, and
-rollback.
+We first transform the evaluator distribution into a worst-case finite-budget
+functional, then derive response-level credits and incorporate them into PPO.
+The exact identities below characterize the unclipped target; the subsequent
+controller specifies how tentative updates are accepted.
 
 \subsection{Exact robust maximum and marginal credit}
 \label{subsec:exact-credit}
@@ -274,7 +362,7 @@ ambiguity set is \(q_j=\overline p_j\) for every \(j\), and the attained
 worst-case Best-of-\(N\) value is
 \begin{equation}
 \label{eq:robust-max-theorem}
-\inf_{q_{1:N}\in\mathfrak U_{\varepsilon_{\rm cal}}(p_{\omega,1:N})}
+\inf_{q_{1:N}\in\mathfrak U_{\varepsilon}(p_{\omega,1:N})}
 \mathbb E_q[\max_jR_j]
 =\sum_{t=1}^{4}\left[1-\prod_{j=1}^{N}\overline F_j(t-1)\right].
 \end{equation}
@@ -285,12 +373,11 @@ increasing, so saturating every admissible CDF upper bound makes all candidates
 stochastically smallest at once; the adversary need not choose a different
 perturbation for each threshold.  The full ambiguity-set problem therefore
 reduces to four threshold products, without rating sampling or enumerating
-\(5^N\) joint outcomes.  This is stronger than applying a separate correction
-to a scalar maximum: the same envelope is feasible for the entire product set
-and is extremal for all thresholds simultaneously.
+\(5^N\) joint outcomes.
 
 For a candidate \(i\), let \(\overline R_i\sim\overline p_i\) and
-\(\overline M_{-i}=\max_{j\ne i}\overline R_j\).  Its leave-one-out marginal
+\(\overline M_{-i}=\max_{j\ne i}\overline R_j\), with empty maximum zero
+when \(N=1\). Its leave-one-out marginal
 credit is
 \begin{equation}
 \label{eq:robust-credit-closed}
@@ -304,21 +391,14 @@ that threshold uncovered.  This leave-one-out value captures incremental group
 credit rather than a winner indicator, so a response can matter without having
 the largest mean score.  Prefix and suffix products compute all credits in
 \(O(N|\mathcal R|)\) time per prompt using the same kernel as the group
-objective, without sampling latent ratings.  In particular, a high-mean response
-can receive little marginal credit when other candidates already cover the same
-thresholds, while a complementary response can receive credit without being the
-mean-score winner.  The credit therefore preserves the group interaction that
-would be lost by assigning each response an isolated scalar reward.  It is a
+objective, without sampling latent ratings. It is a
 marginal, rather than additive, decomposition: ties or redundant candidates
 need not exhaust the group value, because the signal is intended to measure
 incremental threshold coverage.
 
-This distinction also determines what is held fixed in the comparison.  The
-candidate responses are sampled from the policy, but the rating randomness is
-integrated analytically; changing \(N\) would change the group functional, not
-merely the number of reward observations.  At the fixed budget used here, the
-credit is therefore aligned with the deployment statistic at the level of both
-its value and its derivative.
+Changing \(N\) changes the group functional, not merely the number of reward
+observations. The following identity applies likelihood-ratio differentiation
+\citep{williams1992simple,sutton1999policy} to this fixed-budget target.
 
 \begin{theorem}[Exact marginal policy credit]
 \label{thm:main-gradient}
@@ -331,19 +411,12 @@ Under (A1)--(A3), the exact group objective has the score-function gradient
 Thus the response-level estimator is unbiased before PPO clipping.
 \end{theorem}
 
-This is the evaluator-to-policy bridge: latent rating draws are integrated out,
-while the likelihood ratio distributes each candidate's threshold credit over
-its tokens.  The same cached categorical probabilities define the robust target
-and every leave-one-out credit; PPO supplies only the clipped optimization
-carrier.  Before clipping, no sampled rating estimator or learned group-winner
-critic is needed.  After clipping, the estimator is an implementation of the
-same credit rather than a new objective; clipping and rollback are explicit
-controls on the accepted optimization trajectory.  Thus the exact identity
-specifies the target gradient, while the PPO ratio, KL coefficient, and
-acceptance test specify only how aggressively that gradient is realized.  This
-also clarifies the empirical attribution: a difference in the robust endpoint
-is a change in the evaluator-defined target, whereas a difference in held-out
-KL or rollback frequency reflects the controller's operating point.
+The same cached probabilities define the robust target and every leave-one-out
+credit. The likelihood ratio distributes each response's credit over its
+tokens, without sampled ratings or a learned group-winner critic. PPO clipping,
+normalization, KL regularization, and rollback modify the realized update;
+the theorem does not assert that this practical update remains an unbiased
+gradient estimator of \(J_N^{\rm rob}\).
 
 \subsection{Constrained PPO update}
 \label{subsec:constrained-credit}
@@ -358,12 +431,14 @@ A_i=N[\widetilde q_i-b_\psi(x)].
 \end{equation}
 The factors \(1/N\) match the one-response constraints to the group objective;
 the prompt-only baseline preserves the score-function identity.  We use the
-standard clipped PPO surrogate and full-categorical token KL.  Writing
+standard clipped PPO surrogate \citep{schulman2017proximal} and
+full-categorical token KL.  Writing
 \(\rho_{i,h}=\pi_\theta(a_{i,h}\mid s_{i,h})/
 \pi_{\rm old}(a_{i,h}\mid s_{i,h})\), the update maximizes the standard
 per-token expression \(\min\{\rho_{i,h}A_i,
 \operatorname{clip}(\rho_{i,h},1-\epsilon_{\rm PPO},1+\epsilon_{\rm PPO})A_i\}\)
-averaged over candidates, minus \(\beta_{\rm KL}\widehat{\mathrm{KL}}\), and divides
+summed over action tokens and averaged over candidates, minus
+\(\beta_{\rm KL}\widehat{\mathrm{KL}}\), and divides
 by the lagged RMS scale.  The full implementation, including projected dual
 updates, is specified in Appendix~\ref{app:algorithm}.
 
@@ -389,15 +464,17 @@ rollout states, not from sampled actions.  The update uses \(q_i^{\rm rob}\) and
 \(A_i\) from \cref{eq:robust-credit-closed,eq:constrained-credit}.  Starting
 from the current policy and controller state, each iteration evaluates only the
 frozen models on a fixed-size rollout; the policy and controller are updated,
-whereas the models, calibration radius, floors, soft target \(\delta\), and hard
+whereas the models, CDF radius, floors, soft target \(\delta\), and hard
 rollback threshold are fixed by the protocol.
 \begin{algorithm}[H]
 \caption{StableMax-PPO update}
 \label{alg:stablemax}
 \KwIn{Prompts \(x\sim\mathcal D\); initial trainable policy \(\pi_\theta\);
-frozen \(p_\omega,Q_\eta,\pi_{\rm ref}\); fixed \(N,\varepsilon_{\rm cal},
+frozen \(p_\omega,Q_\eta,\pi_{\rm ref}\); fixed \(N,\varepsilon,
 m_0,q_0,\delta,\delta_{\rm hard}\).}
-\KwOut{Accepted policy parameters and optimizer/controller state.}
+\KwOut{Final accepted policy parameters \(\theta\), optimizer state
+\(\mathsf{Opt}\), and controller state
+\((b_\psi,\lambda_m,\lambda_q,\beta_{\rm KL},s)\).}
 Initialize \(\mathsf{Opt}\), \(b_\psi\), \(\lambda_m,\lambda_q\),
 \(\beta_{\rm KL}\), and lagged RMS scale \(s\)\;
 \For{$k=1,\ldots,T_{\rm pol}$}{
@@ -410,8 +487,8 @@ Initialize \(\mathsf{Opt}\), \(b_\psi\), \(\lambda_m,\lambda_q\),
   Measure \(\widehat{\rm KL}(\pi_\theta\Vert\pi_{\rm ref})\) on the same
   rollout states\;
   \eIf{$\widehat{\rm KL}>\delta_{\rm hard}$}{
-    Restore \((\theta,\mathsf{Opt})\), discard the transition, and do not
-    advance \(b_\psi,\lambda_m,\lambda_q,\beta_{\rm KL},s\)\;
+    Restore \((\theta,\mathsf{Opt})\), discard the tentative update and its
+    rollout, and do not advance \(b_\psi,\lambda_m,\lambda_q,\beta_{\rm KL},s\);
   }{
     Commit the transition; fit \(b_\psi\), project the dual updates, and update
     \(\beta_{\rm KL},s\) from accepted data\;
@@ -444,8 +521,8 @@ Without exact coverage,
 \end{theorem}
 
 This is a conditional envelope statement, not a distribution-free guarantee:
-cluster calibration chooses the radius but does not establish pointwise
-coverage for every generated response.  If the envelope misses by at most
+even a valid population-average calibration bound does not establish
+pointwise coverage for every generated response.  If the envelope misses by at most
 \(\xi\), the four ordinal thresholds and \(N\) candidate CDFs contribute the
 explicit \(4N\xi\) degradation term.  The factor depends on the declared
 five-level support and product model, so it is a sensitivity certificate for
@@ -472,22 +549,16 @@ nominal-EV comparator isolates a change in the evaluator-defined objective.  A
 radius change is consequently not equivalent to retuning PPO: it changes the
 policy-gradient direction as well as the objective level.
 
-This gives the calibration parameter a role that can be inspected separately
-from policy regularization.  Setting \(\varepsilon_{\rm cal}=0\) recovers the
-nominal ordinal objective exactly, while increasing it cannot improve the
-robust value by construction.  The sensitivity bound also prevents a small
-reported change from being interpreted as a new optimization effect when it is
-only a change in the declared uncertainty set.
-
 Let \(\phi_i=\nabla_\theta\log\pi_\theta(Y_i\mid x)\).  Consider a hypothetical
 estimator that samples latent ratings from the robust envelope,
 \(G_{\rm samp}=\sum_i(\overline R_i-\overline M_{-i})_+\phi_i\), and the
 implemented credit estimator \(G_{\rm RB}=\sum_iq_i^{\rm rob}\phi_i\).  The
-former introduces evaluator-sampling noise that is unnecessary once the
-categorical probabilities are available.
+former introduces evaluator-sampling noise that can be removed by conditional
+expectation \citep{casella1996rao}.
 
 \begin{proposition}[Rao--Blackwell variance dominance]
 \label{prop:variance}
+Assume \(\mathbb E\|G_{\rm samp}\|^2<\infty\).
 Conditioned on \((x,Y_{1:N})\), \(G_{\rm RB}=\mathbb E[G_{\rm samp}\mid
 x,Y_{1:N}]\).  Consequently, for every vector \(v\),
 \(\operatorname{Var}(v^\top G_{\rm RB})\le
@@ -500,12 +571,6 @@ uses the conditional expectation of the group credit without extra evaluator
 calls; the proposition makes no claim that total optimization variance vanishes.
 It identifies one avoidable source of noise and leaves response-sampling,
 optimization, and controller variability to the empirical analysis.
-
-The distinction matters because the evaluator already supplies the full
-categorical probabilities.  Sampling an ordinal label would add Monte Carlo
-noise without adding information about the declared objective; the exact
-credit removes that noise while preserving the same group interaction and
-score-function expectation.
 
 The last result concerns the realized optimizer state rather than the
 population objective.
@@ -525,21 +590,15 @@ In particular, restoring policy weights without adaptive buffers could make a
 rejected transition affect the next step, so the invariant is stated for the
 complete optimizer/controller state.
 
-The invariant is local to the measured rollout and to the state that the
-controller can mutate.  It guarantees that a rejected step contributes neither
-policy weights nor hidden optimizer momentum to the next accepted step, but it
-does not constrain later accepted updates or imply a global trust region.  This
-is why the empirical report includes both rejection frequency and held-out KL.
-
 \section{Experiments}
 \label{sec:experiments}
 
 Our empirical question is whether the evaluator-to-optimizer contract
-produces a reproducible max--stability operating point. We hold the
-response budget, prompt stream, seeds, optimizer, and rollback rule
+produces a reproducible operating point that is both robust and stable.
+We hold the response budget, prompt stream, seeds, optimizer, and rollback rule
 fixed, while comparators vary the deployment functional, calibration
 treatment, or safeguard. We report robust maximum together with
-independent quality, held-out KL, and rollback frequency so that target
+independently modeled quality, held-out KL, and rollback frequency so that target
 performance and policy stability remain separately observable.
 
 \subsection{Experimental setup}
@@ -555,8 +614,8 @@ Appendix~\ref{app:full-experiments}.  We report robust maximum, held-out KL,
 and rollback frequency because they measure the two sides of the proposed
 operating point.
 
-Repeated helpfulness ratings make the categorical output and its disagreement
-diagnostic identifiable; the independent Quality RM and generated-output
+Repeated helpfulness ratings supervise the categorical output and its
+disagreement diagnostic; the independent Quality RM and generated-output
 proxies test transfer beyond the target evaluator.  Shared prompts, seeds,
 generation budgets, and rollback thresholds keep every comparison on the same
 response-sampling problem.  All confirmatory claims therefore concern this
@@ -578,15 +637,13 @@ $0.034$, compared with $3.424$ and $0.070$ for Mean-PPO.  Under the shared
 rollback controller it rejects 31.0\% of tentative updates, versus 58.6\% for
 Mean-PPO and 82.3\% for GRPO.  GRPO and Scalar max-PPO attain higher robust
 maxima, so the evidence supports a lower-drift operating point rather than
-universal dominance.  Because the primary endpoint is the same
-$h_{32}^{\rm rob}$ functional used in training, this comparison directly tests
-finite-budget objective alignment rather than evaluating a mean-trained policy
-only after Best-of-32 selection.
+universal dominance.  The primary endpoint is the same $h_{32}^{\rm rob}$ group functional used
+in training; it does not measure fresh human ratings of a selected response.
 
 \begin{table}[b]
 \caption{Primary aggregate results (three seeds, 512 prompts per seed).}
 \label{tab:aggregate}
-\centering\scriptsize
+\centering\small
 \begin{tabular}{lcccc}
 \toprule
 Method & Robust max & 95\% CI & Held-out KL & Rollbacks/900\\
@@ -602,33 +659,33 @@ Best-of-32 (base) & 3.086 & [3.045, 3.125] & -- & --\\
 
 \begin{figure}[t]
 \centering
-\includegraphics[width=0.60\linewidth]{figures/max_kl_pareto.pdf}
+\includegraphics[width=0.72\linewidth]{figures/max_kl_pareto.pdf}
 \caption{Robust maximum versus held-out KL. Filled markers are three-seed
 aggregates; open markers are individual seeds and bars are 95\% intervals.}
 \label{fig:max-kl-pareto}
 \end{figure}
 
-Figure~\ref{fig:max-kl-pareto} makes the trade-off explicit: \method{} has
+Figure~\ref{fig:max-kl-pareto} makes the operating point explicit: \method{} has
 lower held-out KL than all three trainable primary comparators while retaining a
 competitive robust maximum, whereas the max-oriented comparators remain higher
 on that endpoint.
 Rollback frequency is an optimization diagnostic, not a population guarantee.
 
-The aggregate numbers quantify the operating point rather than a universal
-ranking.  Relative to Mean-PPO, \method{} increases robust maximum by 0.034
-while reducing held-out KL from 0.070 to 0.034 (a 51\% relative reduction).
+Relative to Mean-PPO, the robust-maximum point estimate is higher by 0.034,
+but the paired hierarchical-bootstrap 95\% interval for the difference is
+$[-0.069,0.130]$ and does not establish superiority. Held-out KL decreases
+from 0.070 to 0.034 (a 51\% relative reduction).
 Relative to Scalar max-PPO, it gives up 0.059 robust-max points while using
 0.020 less KL.  These are the two axes that the method exposes; collapsing them
-into one weighted score would conceal the engineering trade-off the experiment
-is designed to measure.
+into one weighted score would conceal the robust--stable operating point the
+experiment is designed to measure.
 
-The comparison should be read as an operating-point result, not as evidence
-that the safeguards make every endpoint larger.  GRPO and Scalar max-PPO
-demonstrate that more aggressive max-seeking can reach a higher target-RM
-maximum under this protocol, but their larger held-out KL records the additional
-policy movement.  StableMax-PPO instead reaches a nearby point with lower
-drift, which is the behavior predicted by treating quality and motion as
-constraints rather than as unreported side effects.
+The frozen mean and quality floors pass their declared tests, but the complete
+predeclared scientific-success criterion is not met
+(Appendix~\ref{subsec:gate-outcomes}). Higher maxima for GRPO and scalar
+max-PPO and the overlapping independent-proxy intervals delimit the claim:
+these runs demonstrate an objective-aligned, lower-drift policy, not a
+uniformly better policy or an established Pareto frontier.
 
 \subsection{Ablation and stability analysis}
 \label{subsec:ablation-stability-main}
@@ -636,11 +693,11 @@ The component variants isolate changes to the target from changes to the
 controller.  Removing the mean floor raises the aggregate robust maximum from
 \(3.458\) to \(3.508\), but also raises held-out KL from \(0.034\) to \(0.048\).
 Removing the independent-quality floor gives the operating point
-\((3.467,0.048)\), while removing calibration robustification gives
+\((3.467,0.048)\), while removing CDF robustification gives
 \((3.421,0.028)\), in (robust maximum, held-out KL) coordinates.  The
 three-seed intervals overlap and the per-seed effects are heterogeneous, so
 these comparisons are sensitivity analyses rather than isolated causal
-effects.  In particular, removing calibration changes the evaluator-defined
+effects.  In particular, removing CDF robustification changes the evaluator-defined
 target, whereas removing a floor changes the accepted-update trajectory.  The
 complete aggregate and per-seed tables are in
 Appendix~\ref{app:full-experiments}; no component is presented as a universally
@@ -669,20 +726,24 @@ tests.  The last direction is especially important because it asks whether the
 threshold construction can retain tractable policy credit when evaluator errors
 are shared across candidates.
 
+\label{main-text-end}
+
 \emph{Reproducibility statement.} The supplementary artifact contains the
 source, official ICLR style files, protocol, result tables, verification JSON,
-build commands, and the anonymous repository at
-\url{https://github.com/LoveGuys-cmd/rlhf-artifact}.  The main paper specifies
+build commands, and experiment code in the accompanying anonymous archive.  The main paper specifies
 the objective, algorithm, seeds, metrics, and aggregate results; appendices
 give proofs and the complete protocol.  Model weights, credentials, private
 data, and other non-redistributable files are excluded.
 
-\emph{AI use statement.} Generative AI tools assisted with paper
-organization, methodological exposition, language editing, LaTeX and figure
-formatting, and debugging of analysis code.  The authors independently checked
-all mathematical claims and proofs, verified implementation and numerical
-values against frozen result files, and reviewed every AI-assisted change.  No
-AI system generated experimental data or replaced author verification.
+\section*{AI use statement}
+Generative AI tools assisted with paper
+organization, methodological exposition, literature retrieval, reference
+checking, language editing, LaTeX and figure formatting, debugging of analysis
+code, proof development and correction, and interpretation of reported results.  Language models serve as the experimental policies and evaluators described
+in this paper; editing assistants did not supply the reported measurements. The authors are responsible for
+verifying mathematical claims and proofs, checking implementation and numerical
+values against the frozen records, and reviewing all AI-assisted changes
+before submission.
 
 \emph{Ethics statement.} The study uses model-generated text and existing
 preference data.  It collects no new human-subject data or personal
@@ -690,9 +751,10 @@ information.  Model-based preference proxies are reported as proxies, not as
 human judgments of newly generated outputs; possible reward-model exploitation
 and evaluator shift are disclosed in Section~\ref{sec:limitations} and
 Appendix~\ref{app:full-experiments}.
-\label{main-text-end}
+\clearpage
 \bibliographystyle{iclr2027_conference}
 \bibliography{references}
+\clearpage
 \appendix
 \emph{Appendix roadmap.}
 Appendix A gives the ordinal parameterization and proofs of the exact objective,

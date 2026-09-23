@@ -6,6 +6,15 @@ protocol. The core policy implementation is `scripts/evrl_experiment.py`.
 The v8 orchestration scripts are under `scripts/` and the Slurm entry points
 are under `slurm/`.
 
+## Calibration interpretation
+
+The executable files are unchanged from the recorded experiment. In particular,
+`clustered_one_sided_calibration_radius` in `scripts/evrl_experiment.py`
+implements the historical width-one rule. Its radius is a fixed protocol
+parameter, not a certified population calibration bound. The corrected
+population statement and its independence assumptions are in Appendix A of
+the paper. No result in this release was recomputed at a new radius.
+
 ## Reproduction scope
 
 The repository intentionally excludes model weights, private or licensed

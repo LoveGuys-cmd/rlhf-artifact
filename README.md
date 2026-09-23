@@ -5,10 +5,24 @@ aggregate evaluation summaries, and terminal verification metadata for the
 finite-budget RLHF experiment. Large model caches, virtual environments,
 credentials, and full checkpoint blobs are intentionally excluded.
 
-The executable experiment implementation is under `code/`. It includes the
+The recorded experiment implementation is preserved under `code/`. It includes the
 StableMax-PPO and comparison-method training loop, frozen-protocol evaluation and
 diagnostic scripts, unit tests, and the v8 Slurm entry points. The code is
 portable and does not contain the original compute host paths.
+
+## Interpretation of the recorded calibration radius
+
+All tables and figures retain the recorded radius
+`epsilon_run = 0.04680826120821986`; no training or measurement was rerun.
+The paper corrects the independent-cluster population bound to
+`sqrt(2 * log(4 / alpha_cal) / G_cal)`. The historical calibration routine in
+`code/scripts/evrl_experiment.py` uses the smaller width-one term and is
+retained to reproduce the recorded protocol. Its output is not a
+certified population calibration radius. Freezing the evaluator after fitting
+it on the same calibration labels would also fail the independence premise.
+The original cluster report and raw calibration data remain external.
+The exact robust value and credit are valid for any fixed radius in [0,1],
+while the true-rating lower bound additionally requires pointwise coverage.
 
 The confirmatory experiment uses seeds 314, 2718, and 1618. The aggregate
 terminal file reports all gates without modifying or hiding failed criteria.
@@ -27,10 +41,15 @@ generated outputs.
 
 ## Build
 
-Run `pdflatex paper.tex`, `bibtex paper`, then `pdflatex paper.tex` twice.
+Run `latexmk -pdf paper.tex`, or run `pdflatex paper.tex`, `bibtex paper`,
+then `pdflatex paper.tex` twice. Set the Overleaf compiler to pdfLaTeX and
+the main document to `paper.tex`. `main.tex` is an identical alternative entry
+point. The included `paper.pdf` was rebuilt from these revised sources;
+`paper.bbl` is included for convenience.
 The source uses the bundled official ICLR 2027 `.sty` and `.bst` files.
-`paper.tex` contains the anonymous main paper within the nine-page limit,
-followed by references and appendices. Machine-readable tables are the source
+`paper.tex` contains nine pages of anonymous main text and submission
+statements, followed by references and the complete appendices. The ICLR 2027
+style and bibliography files match the official distribution byte for byte. Machine-readable tables are the source
 of all reported values.
 
 Regenerate the robust-max--KL Pareto figure with

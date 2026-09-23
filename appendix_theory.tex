@@ -44,9 +44,8 @@ improvement of any candidate.  Its highest-threshold component is
 The proposition is the finite-support sanity check for the main construction.
 It also explains why the top-rating diagnostic in the artifact is not a
 substitute for the reported objective: it is only the \(t=4\) term, whereas the
-method trains against all four threshold events.  This distinction prevents a
-policy from appearing successful by concentrating probability only at the
-highest category while degrading the intermediate ordinal structure.
+method trains against all four threshold events.  Reporting the complete sum also exposes contributions from intermediate
+thresholds that the top-rating diagnostic alone omits.
 
 \begin{proof}
 For any integer-valued \(Z\in\{0,\ldots,4\}\), the tail-sum identity gives
@@ -62,66 +61,77 @@ decrease any summand.  At \(t=4\),
 expression above.
 \end{proof}
 
-\begin{proposition}[Prompt-cluster calibration statement]
+\begin{proposition}[Prompt-cluster population calibration]
 \label{prop:calibration-radius}
-Assume that the validation prompt clusters are independent and that the
-reward model is fixed before they are evaluated.  For cluster \(g\), let
-\(R_{g\ell}\) denote its repeated ratings, \(n_g\) its number of ratings, and
-\(F_{\omega,g\ell}(t)\) the frozen evaluator CDF at threshold \(t\).  Define
-\(D_{g,t}=n_g^{-1}\sum_{\ell=1}^{n_g}
-\{\mathbf{1}[R_{g\ell}\le t]-F_{\omega,g\ell}(t)\}\) for
-\(t=0,\ldots,3\), and let
-\(\widehat d_t=G_{\mathrm{cal}}^{-1}\sum_{g=1}^{G_{\mathrm{cal}}}D_{g,t}\), where
-\(G_{\mathrm{cal}}\) is the number of independent validation clusters.  Let
-\(\mathbb E_g\) denote expectation over the validation-cluster distribution.
-Define the calibration radius as
+Let \(G_{\rm cal}\ge1\) validation prompt clusters be i.i.d. from a fixed
+cluster distribution. The entire evaluator, including checkpoint selection,
+cutpoints and any fitted temperature, must be fixed independently of these
+clusters. For cluster \(g\), let \(n_g\ge1\) be its number of ratings,
+\(R_{g\ell}\in\{0,1,2,3,4\}\) its ratings, and
+\(F_{\omega,g\ell}(t)\) the corresponding evaluator CDF. Dependence among
+ratings within a cluster is unrestricted. For \(t=0,\ldots,3\), define
+\[
+D_{g,t}=\frac1{n_g}\sum_{\ell=1}^{n_g}
+\{\mathbf 1[R_{g\ell}\le t]-F_{\omega,g\ell}(t)\},\qquad
+\widehat d_t=\frac1{G_{\rm cal}}\sum_{g=1}^{G_{\rm cal}}D_{g,t}.
+\]
+Conditional on the independently fitted evaluator, write
+\(d_t=\mathbb E_g[D_{g,t}]\) for the population cluster mean. For
+\(\alpha_{\rm cal}\in(0,1)\), set
 \begin{equation}
 \label{eq:epsilon-calibration}
 \varepsilon_{\rm cal}
-=
-\min\!\left\{
-1,\,
+=\min\!\left\{1,\,
 \max_{t=0,\ldots,3}(\widehat d_t)_+
-+
-\sqrt{
-\frac{\log(4/\alpha_{\rm cal})}
-     {2G_{\rm cal}}
-}
-\right\}.
++\sqrt{\frac{2\log(4/\alpha_{\rm cal})}{G_{\rm cal}}}\right\}.
 \end{equation}
-Then, with probability at least \(1-\alpha_{\rm cal}\),
-\[
-\mathbb E_g[D_{g,t}]\le\varepsilon_{\rm cal}
-\qquad
-\text{simultaneously for }t=0,1,2,3.
-\]
+Then, over the random validation clusters, with probability at least
+\(1-\alpha_{\rm cal}\), \(d_t\le\varepsilon_{\rm cal}\) simultaneously
+for all four thresholds.
 \end{proposition}
 
 \begin{proof}
-Conditional on the frozen responses and predictions, changing all binary
-indicators in a prompt cluster from zero to one changes \(D_{g,t}\) by
-at most one.  Thus each cluster residual lies in an interval of width one.
-Hoeffding's inequality gives
-\(\Pr(\mathbb E_g[D_{g,t}]-\widehat d_t>
-\sqrt{\log(4/\alpha_{\mathrm{cal}})/(2G_{\mathrm{cal}})})
-\le\alpha_{\mathrm{cal}}/4\).
-
-A union bound over four thresholds proves the simultaneous event.  On that
-event, every right-hand side is bounded by the unclipped expression in
-\cref{eq:epsilon-calibration}.  If clipping is active,
-\(\varepsilon_{\mathrm{cal}}=1\), while
-\(\mathbb E_g[D_{g,t}]\le1\), so the claim still holds.
+Each residual \(D_{g,t}\) lies in \([-1,1]\), an interval of width two.
+For fixed \(t\), independence across clusters and Hoeffding's inequality
+\citep{hoeffding1963probability} therefore give, for \(u>0\),
+\[
+\Pr\{d_t-\widehat d_t>u\mid\omega\}
+\le \exp(-G_{\rm cal}u^2/2).
+\]
+Taking \(u=\sqrt{2\log(4/\alpha_{\rm cal})/G_{\rm cal}}\) makes this
+probability at most \(\alpha_{\rm cal}/4\). A union bound over four
+thresholds yields \(d_t\le\widehat d_t+u\) simultaneously. Replacing
+\(\widehat d_t\) by the largest positive part only increases the upper bound.
+Clipping at one remains valid because \(d_t\le1\). The conditional bound
+holds for every independently fitted evaluator and hence also after averaging
+over its training randomness.
 \end{proof}
 
-\emph{Scope of the calibration proposition.}
-\Cref{prop:calibration-radius} is a population-average statement over the
-validation prompt distribution, not a distribution-free pointwise guarantee
-for every generated response.  The calibration split fixes the radius before
-training, whereas the main theorem is conditional on its envelope covering a
-particular candidate; the artifact records these two claims separately.
+\emph{Scope and recorded experimental radius.}
+This is a prompt-weighted population-average statement. It neither bounds
+individual response CDF errors nor transfers automatically to policy-generated
+responses. Freezing a model after fitting it on the same validation labels does
+not satisfy the independence premise; a fresh calibration split is required.
+Conditioning on validation responses to obtain width-one intervals would change
+the target to a fixed-design conditional mean and does not prove the population
+statement above.
+
+The recorded experiments used the earlier rule
+\[
+\varepsilon_{\rm run}=\min\!\left\{1,\max_t(\widehat d_t)_+
++\sqrt{\frac{\log(4/\alpha_{\rm cal})}{2G_{\rm cal}}}\right\},
+\]
+with recorded value \(0.04680826120821986\). Its concentration term is half
+that in \cref{eq:epsilon-calibration}; we make no population-confidence claim
+for this recorded radius. All empirical tables and figures retain this fixed
+value. The exact ambiguity-set value, credit, radius monotonicity and
+conditional-coverage results hold for every fixed \(\varepsilon\in[0,1]\),
+including \(\varepsilon_{\rm run}\). They do not require that it was obtained
+from the population calibration estimator. Training or evaluating at a new
+radius would define a different experiment and is not reported here.
 
 \begin{proof}[Proof of Theorem~\ref{thm:main-max}]
-The envelope \(\overline F_j\) is nondecreasing, has boundary values zero and one, and therefore defines a valid categorical distribution. For every feasible \(q_j \in \mathcal U\), we have
+The envelope \(\overline F_j\) is nondecreasing, has boundary values zero and one, and therefore defines a valid categorical distribution. For every feasible \(q_{1:N}\in\mathfrak U_{\varepsilon}(p_{\omega,1:N})\), we have
 \[
 F_{q_j}(t) \le \overline F_j(t), \qquad t = 0,1,2,3.
 \]
@@ -163,10 +173,14 @@ At each threshold, the true and robust tail-sum terms can differ only through th
 \[
 \prod_j a_j - \prod_j b_j \le \sum_j (a_j - b_j)_+.
 \]
-Applying this inequality with \(a_j = F_j^*(t-1)\) and \(b_j = \overline F_j(t-1)\) at each of the four thresholds, the discrepancy is at most \(N\xi\) per threshold, and therefore at most \(4N\xi\) after summation. Taking outer expectations preserves the resulting inequality:
+Applying this inequality with \(a_j = F_j^*(t-1)\) and \(b_j = \overline F_j(t-1)\) at each of the four thresholds, the discrepancy is at most \(N\xi\) per threshold, and therefore at most \(4N\xi\) after summation. For the fixed group this gives
 \[
-\mathbb E_*[\max_j R_j] \ge h_N^{\mathrm{rob}} - 4N\xi.
+\mathbb E_*[\max_j R_j\mid x,Y_{1:N}]
+\ge h_N^{\mathrm{rob}}(x,Y_{1:N})-4N\xi(x,Y_{1:N}).
 \]
+If prompts and responses are also averaged, both sides must be averaged:
+\(\mathbb E_{x,Y}\mathbb E_*[\max_jR_j\mid x,Y]
+\ge J_N^{\mathrm{rob}}(\theta)-4N\mathbb E_{x,Y}[\xi(x,Y)]\).
 \end{proof}
 
 \begin{proof}[Proof of Proposition~\ref{prop:radius-monotonicity}]

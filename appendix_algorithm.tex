@@ -1,3 +1,4 @@
+\clearpage
 \section{Implementation Details for \method}
 \label{app:algorithm}
 
@@ -7,10 +8,10 @@ models, seeds, and thresholds; the machine-readable supplement provides
 aggregate and per-seed tables, terminal records, and SHA-256 hashes.
 
 For each prompt $x_b$, the implementation caches behavior-policy token log
-probabilities and response masks before evaluating any reward model. The five
+probabilities and response masks before the tentative policy update. The five
 ordinal probabilities are converted to prefix CDFs. For
 $t=0,\ldots,3$, the robust envelope is
-\(\bar F_{b,i}(t)=\min\{1,F_{\omega,b,i}(t)+\varepsilon_{\rm cal}\}\),
+\(\bar F_{b,i}(t)=\min\{1,F_{\omega,b,i}(t)+\varepsilon\}\),
 with \(\bar F_{b,i}(-1)=0\) and \(\bar F_{b,i}(4)=1\).
 The robust probabilities are adjacent differences of this envelope. Prefix
 and suffix products compute all group values and leave-one-out credits in
@@ -33,13 +34,9 @@ snapshots are restored and no baseline, dual, KL-controller, or RMS state is
 advanced. This is an exact batch-level rollback invariant; it does not imply
 a population KL bound.
 
-All floating-point reductions use deterministic tensor order where supported.
-The supplementary code contains tests for ordinal identities, credit
-reductions, finite metrics, protocol hashes, and rollback restoration.
-
 \begin{table}[H]
 \centering
-\scriptsize
+\footnotesize
 \caption{Implementation invariants checked by the artifact.}
 \label{tab:implementation-audit}
 \begin{tabular}{p{0.24\linewidth}p{0.46\linewidth}p{0.20\linewidth}}
@@ -54,3 +51,44 @@ Protocol integrity & Finite metrics, content hashes, and verification records ar
 \bottomrule
 \end{tabular}
 \end{table}
+
+\newpage
+\subsection{Loss normalization, KL estimands, and controller updates}
+Let \(B\) be the number of prompts, \(L_{b,i}\) a sampled response length,
+and \(T=\sum_{b,i}L_{b,i}\) the number of action tokens. With
+\(\ell_{b,i,h}=\min\{\rho_{b,i,h}A_{b,i},
+\operatorname{clip}(\rho_{b,i,h},1-\epsilon_{\rm PPO},1+\epsilon_{\rm PPO})A_{b,i}\}\),
+the minimized loss in the recorded implementation is
+\[
+\mathcal L_k=\frac{-\frac1{BN}\sum_{b,i}\sum_{h=1}^{L_{b,i}}\ell_{b,i,h}
++\frac{\beta_k}{T}\sum_{b,i}\sum_{h=1}^{L_{b,i}}k_\theta(s_{b,i,h})}
+{s_k+10^{-8}}.
+\]
+The policy term sums tokens within a response and averages responses; the KL
+term averages all action tokens. States are sampled from \(\pi_{\rm old}\),
+and their distribution is held fixed during the surrogate step. Thus the
+penalty is not an unbiased gradient of the population \(K(\theta)\).
+The post-step rollback statistic uses these same states with updated policy
+probabilities. Held-out KL instead averages token KL within each common
+base-policy response, then averages those response means within prompts and
+across prompts and seeds. Its state distribution and length weighting differ
+from the training statistic, so held-out KL may exceed \(\delta_{\rm hard}\)
+without contradicting rollback correctness.
+
+After acceptance, for \(Z\in\{\mu_\omega,Q_\eta\}\) and its floor \(z_0\),
+\(\lambda_Z\leftarrow\operatorname{clip}(\lambda_Z+0.05(z_0-\widehat Z),0,20)\),
+where \(\widehat Z\) averages the accepted rollout's candidate scores and
+both duals start at one. Let \(c_{b,i}=\widetilde q_{b,i}-b_\psi(x_b)\).
+The lagged scale starts at \(s_0=1\), with \(v_0=1\), and updates as
+\(v_{k+1}=0.99v_k+0.01(BN)^{-1}\sum_{b,i}c_{b,i}^2\),
+\(s_{k+1}=\sqrt{v_{k+1}+10^{-8}}\). The baseline fits the prompt mean of
+\(\widetilde q\) by squared loss, with AdamW learning rate \(10^{-3}\) and
+hidden width 128. Policy and baseline gradient norms are clipped at one.
+The KL coefficient starts at 0.02, doubles when accepted-batch KL exceeds
+\(1.5\delta\), halves when it falls below \(\delta/1.5\), and is clipped
+to \([10^{-5},10]\). A rejected transition changes none of these states.
+The recorded protocol uses one PPO epoch per tentative update.
+
+All floating-point reductions use deterministic tensor order where supported.
+The supplementary code contains tests for ordinal identities, credit
+reductions, finite metrics, protocol hashes, and rollback restoration.

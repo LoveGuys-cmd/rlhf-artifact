@@ -1,7 +1,7 @@
 # Supplementary Artifact Contents
 
 This anonymous archive contains the source and machine-readable artifacts
-needed to inspect the submitted paper and reproduce the analysis pipeline.
+needed to inspect the submitted paper and its recorded analysis pipeline.
 
 ## Included
 
@@ -16,6 +16,10 @@ needed to inspect the submitted paper and reproduce the analysis pipeline.
   Slurm entry points.
 - `code/requirements.txt` and READMEs describing commands and data/model
   assets that are intentionally external.
+
+The calibration proposition is corrected in the paper. Historical executable
+code and numerical outputs are retained for reproducibility at the recorded
+fixed radius; the root README explains its statistical scope.
 
 ## External by design
 
