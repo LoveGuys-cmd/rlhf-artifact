@@ -65,25 +65,31 @@
 \maketitle
 
 \begin{abstract}
-Best-of-\(N\) systems generate \(N\) responses at deployment, whereas
-reinforcement learning from human feedback (RLHF) usually optimizes the expected
-reward of one response. Scalar finite-budget objectives partly close this gap,
-but discard each response's probabilities of receiving different ratings.
-Equal mean ratings can therefore conceal different expected maxima within a
-candidate group. We introduce \textbf{\method{}}, which retains these probabilities
-from a frozen ordinal reward model trained on human ratings and optimizes the
-expected best latent rating among \(N\) candidates. A fixed, one-sided bound on
-the cumulative rating distribution gives an exact worst-case expected maximum
-and an exact response-level credit for proximal policy optimization (PPO).
-Predictive variance remains a model-based diagnostic of annotator disagreement,
-not a reward bonus. Lower bounds on mean rating and an independently trained
-quality score constrain typical responses; Kullback--Leibler (KL) regularization
-and rollback limit policy drift. Across three seeds at \(N=32\),
-\textbf{\method{}} attains a robust maximum of 3.458 with held-out KL of 0.034,
-compared with 3.424 and 0.070 for Mean-PPO. Group relative policy optimization (GRPO) and scalar max-PPO achieve
-higher robust maxima at higher KL. The results establish a lower-drift
-operating point under frozen evaluators, not uniform improvement across
-endpoints or validation with fresh human judgments.
+Many language-model systems use Best-of-\(N\) sampling at deployment,
+while standard reinforcement learning from human feedback (RLHF) optimizes
+the expected reward of a single response. Training objectives designed for
+Best-of-\(N\) sampling partly close this gap, but their scalar-reward
+formulations discard the per-rating-level probabilities that determine the
+maximum. This matters because two responses with the same predicted mean
+can have different probabilities of receiving a high rating, and thus
+different expected latent rating maxima within a candidate group.
+We introduce \textbf{\method{}}, which directly optimizes the expected
+best latent rating among \(N\) candidates using the predictive distribution
+of a frozen ordinal reward model trained from human ratings. Its variance
+is retained as a model-based diagnostic of annotator disagreement, not an
+optimization bonus. A one-sided ambiguity set for cumulative distribution
+functions (CDFs), with a fixed radius, yields the exact worst-case expected
+latent rating maximum and an exact response-level policy credit for
+proximal policy optimization (PPO). To limit degradation in typical
+responses and policy drift, we impose lower bounds on the predicted mean
+rating and on an independently trained quality score, and regulate
+Kullback--Leibler (KL) divergence from the reference policy with rollback.
+Across three seeds at \(N=32\), \textbf{\method{}} achieves competitive
+robust maximum performance with lower held-out KL than Mean-PPO,
+group relative policy optimization (GRPO), and scalar max-PPO baselines.
+GRPO and scalar max-PPO attain higher robust maxima, highlighting the
+measured trade-off between maximum performance and policy drift under
+frozen evaluators.
 \end{abstract}
 \section{Introduction}
 \label{sec:introduction}
@@ -92,11 +98,11 @@ Many language-model systems generate \(N\) responses and then return, rerank,
 or inspect the best candidate \citep{nakano2021webgpt,cobbe2021training}.
 Standard RLHF instead optimizes the expected score of one response
 \citep{christiano2017deep,stiennon2020learning,ouyang2022training}.
-A higher mean score need not make a highly rated candidate more likely within
-this fixed budget. Mean-PPO and group relative policy optimization (GRPO) are
+A higher mean score need not make a highly rated candidate more likely among
+these \(N\) responses. Mean-PPO and group relative policy optimization (GRPO) are
 general-purpose methods \citep{shao2024deepseekmath,guo2025deepseekr1}; recent
 $\mathrm{max}@k$, Best-of-\(N\), and inference-aware policy gradients target
-multi-response performance \citep{chow2025inference,tang2025inference,
+performance across multiple responses \citep{chow2025inference,tang2025inference,
 walder2025pkpo,bagirov2025best,li2026posttraining,poiani2026maxk}.
 Their scalar-reward formulations nevertheless reduce each response to one
 score. Equal means can conceal different probabilities of receiving high
@@ -126,7 +132,7 @@ both quality measurements, and drift remain separate reported quantities.
 
 Our contributions are:
 \begin{itemize}
-\item \textbf{Using rating distributions for finite-budget alignment.}
+\item \textbf{Using rating distributions for Best-of-\(N\) alignment.}
 We retain all five rating probabilities from repeated human annotations to
 compute the expected maximum. The mean measures typical model-scored quality;
 the variance remains a disagreement diagnostic. The contribution is this
@@ -146,7 +152,7 @@ floors. KL control regulates policy drift; state-complete rollback restores
 rejected policy and optimizer updates, leaving controller state unchanged. These
 safeguards do not imply a population KL guarantee.
 
-\item \textbf{A three-seed characterization at a fixed response budget.}
+\item \textbf{A three-seed study with \(N=32\) responses per prompt.}
 At \(N=32\), \method{} attains robust maximum 3.458 and held-out KL 0.034,
 versus 3.424 and 0.070 for Mean-PPO. GRPO and scalar max-PPO attain higher maxima
 at higher drift. Matched comparators, component ablations, and independent
