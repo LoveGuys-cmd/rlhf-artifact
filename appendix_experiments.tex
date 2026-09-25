@@ -90,7 +90,7 @@ hidden by the split terminology.
 \subsection{Frozen training protocol}
 \label{subsec:experimental-protocol}
 
-The primary response budget is \(N=32\).  Each trainable confirmatory method uses
+The primary setting is \(N=32\).  Each trainable confirmatory method uses
 three seeds \(\{314,2718,1618\}\), 300 policy steps, two prompts
 per step, 32 responses per prompt, learning rate \(2\times10^{-5}\),
 one PPO epoch, clip \(0.2\), LoRA rank 8 with scale 32, sampling
@@ -98,7 +98,7 @@ temperature 1, \(\mathrm{top}_p=1\), maximum prompt length 384,
 and maximum response length 64. Seed \(42\) is used only for development and real-GPU smoke tests and is
 excluded from all confirmatory intervals, gates, and aggregate claims. The target KL is \(0.02\) and the
 hard rollback level is \(0.04\).  All methods share the same prompt
-stream, generation budget, optimizer class, policy architecture, and
+stream, value of \(N\), optimizer class, policy architecture, and
 checkpoint-selection rule.
 
 The non-inferiority floors are frozen before any trainable policy outcome is
@@ -244,7 +244,7 @@ training objective.  Secondary model-based endpoints are
 \(p_{\omega,4}\), independent Quality score, reference KL,
 constraint residuals, accepted updates, and exact rollback counts.
 
-The confirmatory evaluation fixes \(N=32\) for every method; no cross-budget
+The confirmatory evaluation fixes \(N=32\) for every method; no cross-\(N\)
 sensitivity result is claimed.  The group-level maximum uses all 32 candidates
 and does not require a selected response.  A deployment-style
 \(\arg\max_i\mu_\omega(x,Y_i)\) response is reported only as a secondary

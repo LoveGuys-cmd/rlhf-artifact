@@ -19,7 +19,7 @@ Repeated-rating likelihood and disagreement supervise the conditional scale;
 therefore this variance is a model-based signal of annotation disagreement,
 not epistemic uncertainty or a stand-alone reward.  Proper scoring and
 calibration are required because the complete categorical distribution enters
-the finite-budget objective \citep{mccullagh1980regression,kendall2017uncertainties,
+the Best-of-\(N\) objective \citep{mccullagh1980regression,kendall2017uncertainties,
 lou2024uncertainty,sun2025purm,gneiting2007strictly,guo2017calibration}.
 
 This parameterization is included to make the evaluator interface reproducible,
@@ -27,7 +27,7 @@ not to claim a new ordinal-link model.  The methodological choice is what the
 policy does with the frozen output: the same five probabilities support the
 nominal mean, threshold products, robust envelope, and disagreement diagnostic.
 Keeping these uses separate is important because replacing the vector by its
-mean would make the finite-budget objective and its calibration check
+mean would make the Best-of-\(N\) objective and its calibration check
 unidentifiable.
 
 \begin{proposition}[Finite-support threshold decomposition]

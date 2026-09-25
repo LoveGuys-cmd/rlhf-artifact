@@ -2,7 +2,7 @@
 
 This repository contains the anonymous paper source, ICLR 2027 style files,
 aggregate evaluation summaries, and terminal verification metadata for the
-finite-budget RLHF experiment. Large model caches, virtual environments,
+Best-of-\(N\) RLHF experiment. Large model caches, virtual environments,
 credentials, and full checkpoint blobs are intentionally excluded.
 
 The recorded experiment implementation is preserved under `code/`. It includes the
@@ -26,8 +26,8 @@ while the true-rating lower bound additionally requires pointwise coverage.
 
 The confirmatory experiment uses seeds 314, 2718, and 1618. The aggregate
 terminal file reports all gates without modifying or hiding failed criteria.
-All confirmatory training and evaluation runs use (N=32); this artifact does
-not report a cross-budget sensitivity study.
+All confirmatory training and evaluation runs use \(N=32\); this artifact does
+not report sensitivity across different values of \(N\).
 
 The frozen ordinal Moment RM is trained on HelpSteer2 repeated helpfulness
 ratings, with the decontaminated preference replay recorded in its training
